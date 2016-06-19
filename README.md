@@ -1,4 +1,4 @@
-#This is an Arduino 2.4GHz radio and IR Ttansmitter
+#This is an Arduino 2.4GHz radio and IR transmitter
 ## Features:
 - IR transmitter for LEGO Powerfunctions and trains
 - 2.4GHz radio for RC cars, helicopters etc.
