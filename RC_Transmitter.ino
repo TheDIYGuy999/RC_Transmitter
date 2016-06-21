@@ -1,5 +1,5 @@
 // Micro RC Project. a tiny little 2.4GHz RC unit!
-// 3.3V, 8MHz Pro Mini, 2.4GHz NRF24L01 radio module
+// 3.3V, 8MHz Pro Mini or Pro Micro, 2.4GHz NRF24L01 radio module
 
 //
 // =======================================================================================================
