@@ -1,8 +1,9 @@
 // Micro RC Project. a tiny little 2.4GHz RC unit!
 // 3.3V, 8MHz Pro Mini, 2.4GHz NRF24L01 radio module
 // SSD 1306 128 x 63 0.96" OLED
+// Custom PCB from OSH Park
 
-float codeVersion = 0.9;
+float codeVersion = 1.0;
 
 //
 // =======================================================================================================
@@ -93,8 +94,8 @@ byte leftJoystickButtonState;
 byte rightJoystickButtonState;
 
 // Buttons
-#define BUTTON_LEFT 0
-#define BUTTON_RIGHT 1
+#define BUTTON_LEFT 1
+#define BUTTON_RIGHT 10
 
 byte leftButtonState;
 byte rightButtonState;
@@ -113,6 +114,7 @@ statusLED redLED(false); // red: ON = battery empty
 // OLED display
 U8GLIB_SH1106_128X64 u8g(U8G_I2C_OPT_FAST);  // I2C / TWI  FAST instead of NONE = 400kHz I2C!
 int activeScreen = 0; // the currently displayed screen number (0 = splash screen)
+boolean displayLocked = true;
 
 //
 // =======================================================================================================
@@ -123,7 +125,7 @@ int activeScreen = 0; // the currently displayed screen number (0 = splash scree
 void setupRadio() {
   radio.begin();
   radio.setChannel(1);
-  radio.setPALevel(RF24_PA_HIGH);
+  radio.setPALevel(RF24_PA_LOW); // Set Power Amplifier (PA) level to one of four levels: RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
   radio.setDataRate(RF24_250KBPS);
   radio.setAutoAck(true);                  // Ensure autoACK is enabled
   radio.enableAckPayload();
@@ -175,8 +177,8 @@ void setup() {
 #endif
 
   // LED setup
-  greenLED.begin(5); // Green LED on pin 5
-  redLED.begin(6); // Red LED on pin 6
+  greenLED.begin(6); // Green LED on pin 5
+  redLED.begin(5); // Red LED on pin 6
 
   // Pinmodes (all other pinmodes are handled inside libraries)
   pinMode(JOYSTICK_BUTTON_LEFT, INPUT_PULLUP);
@@ -191,7 +193,7 @@ void setup() {
   setupPowerfunctions();
 
   // Display setup
-  u8g.setRot180(); // flip screen, if required
+  //u8g.setRot180(); // flip screen, if required
   u8g.setFontRefHeightExtendedText();
   u8g.setDefaultForegroundColor();
   u8g.setFontPosTop();
@@ -224,13 +226,13 @@ void readButtons() {
     drawDisplay();
   }
 
-  // right button (integrated in Joystick)
+  // Right button (integrated in Joystick)
   if (DRE(digitalRead(JOYSTICK_BUTTON_RIGHT), rightJoystickButtonState)) {
     data.mode2 = !data.mode2;
     drawDisplay();
   }
 
-  // left button S2: Channel selection
+  // Left button S2: Channel selection
   if (DRE(digitalRead(BUTTON_LEFT), leftButtonState)) {
     vehicleNumber ++;
     if (vehicleNumber > maxVehicleNumber) vehicleNumber = 1;
@@ -239,7 +241,7 @@ void readButtons() {
     drawDisplay();
   }
 
-  // right button S3: Change transmission mode. Radio <> IR
+  // Right button S3: Change transmission mode. Radio <> IR
   if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState)) {
     IrMode = !IrMode;
     drawDisplay();
@@ -252,10 +254,29 @@ void readButtons() {
 // =======================================================================================================
 //
 void readJoysticks() {
-  data.axis1 = map(analogRead(A0), 0, 1023, 0, 100); // Aileron (Steering for car)
-  data.axis2 = map(analogRead(A1), 0, 1023, 0, 100); // Elevator
-  data.axis3 = map(analogRead(A2), 0, 1023, 0, 100); // Throttle
-  data.axis4 = map(analogRead(A3), 0, 1023, 0, 100); // Rudder
+
+  // save previous joystick positions
+  byte previousAxis1 = data.axis1;
+  byte previousAxis2 = data.axis2;
+  byte previousAxis3 = data.axis3;
+  byte previousAxis4 = data.axis4;
+
+  // Read current joystick positions
+  data.axis1 = map(analogRead(A1), 0, 1023, 0, 100); // Aileron (Steering for car)
+  data.axis2 = map(analogRead(A0), 0, 1023, 0, 100); // Elevator
+  data.axis3 = map(analogRead(A3), 0, 1023, 0, 100); // Throttle
+  data.axis4 = map(analogRead(A2), 0, 1023, 0, 100); // Rudder
+
+  // Only allow display refresh, if no value has changed!
+  if (previousAxis1 != data.axis1 ||
+      previousAxis2 != data.axis2 ||
+      previousAxis3 != data.axis3 ||
+      previousAxis4 != data.axis4) {
+    displayLocked = true;
+  }
+  else {
+    displayLocked = false;
+  }
 }
 
 //
@@ -329,8 +350,8 @@ void transmitRadio() {
     }
   }
 
-  // if the transmission was not confirmed after > 150ms...
-  if (millis() - previousSuccessfulTransmission > 150) {
+  // if the transmission was not confirmed (from the receiver) after > 200ms...
+  if (millis() - previousSuccessfulTransmission > 200) {
     greenLED.on();
     transmissionState = false;
     memset(&payload, 0, sizeof(payload)); // clear the payload array, if transmission error
@@ -346,22 +367,24 @@ void transmitRadio() {
 #endif
   }
 
-  // refresh transmission state on the display, if changed
-  if (transmissionState != previousTransmissionState) {
-    previousTransmissionState = transmissionState;
-    drawDisplay();
-  }
+  if (!displayLocked) {
+    // refresh transmission state on the display, if changed
+    if (transmissionState != previousTransmissionState) {
+      previousTransmissionState = transmissionState;
+      drawDisplay();
+    }
 
-  // refresh Rx Vcc on the display, if changed more than +/- 0.05V
-  if (payload.vcc - 0.05 >= previousRxVcc || payload.vcc + 0.05 <= previousRxVcc) {
-    previousRxVcc = payload.vcc;
-    drawDisplay();
-  }
+    // refresh Rx Vcc on the display, if changed more than +/- 0.05V
+    if (payload.vcc - 0.05 >= previousRxVcc || payload.vcc + 0.05 <= previousRxVcc) {
+      previousRxVcc = payload.vcc;
+      drawDisplay();
+    }
 
-  // refresh Rx V Batt on the display, if changed more than +/- 0.2V
-  if (payload.batteryVoltage - 0.5 >= previousRxVbatt || payload.batteryVoltage + 0.5 <= previousRxVbatt) {
-    previousRxVbatt = payload.batteryVoltage;
-    drawDisplay();
+    // refresh Rx V Batt on the display, if changed more than +/- 0.2V
+    if (payload.batteryVoltage - 0.5 >= previousRxVbatt || payload.batteryVoltage + 0.5 <= previousRxVbatt) {
+      previousRxVbatt = payload.batteryVoltage;
+      drawDisplay();
+    }
   }
 
 
@@ -402,7 +425,7 @@ void led() {
 
 void checkBattery() {
 
-  txBatt = analogRead(BATTERY_DETECT_PIN) / 103.33; // 1023steps / 9.9V = 103.33
+  txBatt = (analogRead(BATTERY_DETECT_PIN) / 103.33) + 0.7; // 1023steps / 9.9V = 103.33 + 0.7 diode drop!
   txVcc = readVcc() / 1000.0 ;
 
   if (txBatt >= 4.4) {
