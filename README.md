@@ -8,6 +8,7 @@
 - 2.4GHz NRF24L01 radio module
 - Support for 0.96" I2C OLED
 - very compact
+- Eagle PCB included
 
 ## Usage
 
