@@ -2,8 +2,11 @@
 // 3.3V, 8MHz Pro Mini, 2.4GHz NRF24L01 radio module
 // SSD 1306 128 x 63 0.96" OLED
 // Custom PCB from OSH Park
+// Menu for the following:
+// -Channel reversing
+// -Value changes are stored in EEPROM
 
-float codeVersion = 1.0;
+float codeVersion = 1.1;
 
 //
 // =======================================================================================================
@@ -24,6 +27,7 @@ float codeVersion = 1.0;
 #include <RF24.h> // Installed via Tools > Board > Boards Manager > Type RF24
 #include <printf.h>
 #include <SimpleTimer.h> // https://github.com/jfturcot/SimpleTimer
+#include <EEPROMex.h> // https://github.com/thijse/Arduino-EEPROMEx
 #include <LegoIr.h> // https://github.com/TheDIYGuy999/LegoIr
 #include <statusLED.h> // https://github.com/TheDIYGuy999/statusLED
 #include "U8glib.h"
@@ -39,10 +43,10 @@ float codeVersion = 1.0;
 //
 
 // Is the radio or IR transmission mode active?
-boolean IrMode = true;
+boolean IrMode = false; // Radio mode is active by default
 
 // Vehicle address
-int vehicleNumber = 0;
+int vehicleNumber = 1; // Vehicle number one is active by default
 const int maxVehicleNumber = 5;
 
 // the ID number of the used "radio pipe" must match with the programmed ID on the vehicle receiver!
@@ -75,7 +79,8 @@ boolean transmissionState;
 
 // LEGO powerfunctions IR
 LegoIr pf;
-const int maxAddressPF = 4;
+int pfChannel;
+const int pfMaxAddress = 3;
 
 // TX voltages
 boolean batteryOkTx = false;
@@ -86,6 +91,17 @@ float txBatt;
 // Timer
 SimpleTimer timer;
 
+//Joystick reverse
+boolean joystickReversed[maxVehicleNumber + 1][4] = { // 5 + 1 Vehicle Addresses, 4 Servos
+  {false, false, false, false}, // Address 0 used for EEPROM initialisation
+
+  {false, false, false, false}, // Address 1
+  {false, false, false, false}, // Address 2
+  {false, false, false, false}, // Address 3
+  {false, false, false, false}, // Address 4
+  {false, false, false, false}, // Address 5
+};
+
 // Joystick Buttons
 #define JOYSTICK_BUTTON_LEFT 4
 #define JOYSTICK_BUTTON_RIGHT 2
@@ -94,11 +110,15 @@ byte leftJoystickButtonState;
 byte rightJoystickButtonState;
 
 // Buttons
-#define BUTTON_LEFT 1
-#define BUTTON_RIGHT 10
+#define BUTTON_LEFT 1 // - or channel select
+#define BUTTON_RIGHT 10 // + or transmission mode select
+#define BUTTON_SEL 0 // select button for menu
+#define BUTTON_BACK 9 // back button for menu
 
-byte leftButtonState;
-byte rightButtonState;
+byte leftButtonState = 7; // init states with 7 (see macro below)!
+byte rightButtonState = 7;
+byte selButtonState = 7;
+byte backButtonState = 7;
 
 // Status LED objects (false = not inverted)
 statusLED greenLED(false); // green: ON = ransmitter ON, flashing = Communication with vehicle OK
@@ -115,6 +135,10 @@ statusLED redLED(false); // red: ON = battery empty
 U8GLIB_SH1106_128X64 u8g(U8G_I2C_OPT_FAST);  // I2C / TWI  FAST instead of NONE = 400kHz I2C!
 int activeScreen = 0; // the currently displayed screen number (0 = splash screen)
 boolean displayLocked = true;
+byte menuRow = 0; // Menu active cursor line
+
+// EEPROM
+int address = 0;
 
 //
 // =======================================================================================================
@@ -155,9 +179,9 @@ void setupRadio() {
 //
 
 void setupPowerfunctions() {
-  int pfChannel = vehicleNumber - 1;  // channel 0 - 3 is labelled as 1 - 4 on the LEGO devices!
+  pfChannel = vehicleNumber - 1;  // channel 0 - 3 is labelled as 1 - 4 on the LEGO devices!
 
-  if (pfChannel > 3) pfChannel = 3;
+  if (pfChannel > pfMaxAddress) pfChannel = pfMaxAddress;
 
   pf.begin(3, pfChannel);  // Pin 3, channel 0 - 3
 }
@@ -176,6 +200,14 @@ void setup() {
   delay(3000);
 #endif
 
+  // EEPROM setup
+  EEPROM.readBlock(address, joystickReversed); // re-load all values from the EEPROM
+
+  if (joystickReversed[0][0]) { // 255 is standard after a program download, so we have to set all the booleans to "0"!
+    memset(joystickReversed, 0, sizeof(joystickReversed));
+    EEPROM.updateBlock(address, joystickReversed);
+  }
+
   // LED setup
   greenLED.begin(6); // Green LED on pin 5
   redLED.begin(5); // Red LED on pin 6
@@ -185,6 +217,8 @@ void setup() {
   pinMode(JOYSTICK_BUTTON_RIGHT, INPUT_PULLUP);
   pinMode(BUTTON_LEFT, INPUT_PULLUP);
   pinMode(BUTTON_RIGHT, INPUT_PULLUP);
+  pinMode(BUTTON_SEL, INPUT_PULLUP);
+  pinMode(BUTTON_BACK, INPUT_PULLUP);
 
   // Radio setup
   setupRadio();
@@ -220,31 +254,67 @@ void setup() {
 //
 
 void readButtons() {
-  // Left button (integrated in Joystick)
+  // Left joystick button (Mode 1)
   if (DRE(digitalRead(JOYSTICK_BUTTON_LEFT), leftJoystickButtonState)) {
     data.mode1 = !data.mode1;
     drawDisplay();
   }
 
-  // Right button (integrated in Joystick)
+  // Right joystick button (Mode 2)
   if (DRE(digitalRead(JOYSTICK_BUTTON_RIGHT), rightJoystickButtonState)) {
     data.mode2 = !data.mode2;
     drawDisplay();
   }
 
-  // Left button S2: Channel selection
-  if (DRE(digitalRead(BUTTON_LEFT), leftButtonState)) {
-    vehicleNumber ++;
-    if (vehicleNumber > maxVehicleNumber) vehicleNumber = 1;
-    setupRadio(); // Re-initialize the radio with the new pipe address
-    setupPowerfunctions(); // Re-initialize the IR transmitter with the new channel address
+  if (activeScreen <= 10) { // if menu is not displayed ----------
+
+    // Left button: Channel selection
+    if (DRE(digitalRead(BUTTON_LEFT), leftButtonState)) {
+      vehicleNumber ++;
+      if (vehicleNumber > maxVehicleNumber) vehicleNumber = 1;
+      setupRadio(); // Re-initialize the radio with the new pipe address
+      setupPowerfunctions(); // Re-initialize the IR transmitter with the new channel address
+      drawDisplay();
+    }
+
+    // Right button: Change transmission mode. Radio <> IR
+    if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState)) {
+      IrMode = !IrMode;
+      drawDisplay();
+    }
+  }
+  else { // if menu is displayed -----------
+    // Left button: Value -
+    if (DRE(digitalRead(BUTTON_LEFT), leftButtonState)) {
+      //joystickReversed[vehicleNumber][menuRow - 1] = !joystickReversed[vehicleNumber][menuRow - 1];
+      joystickReversed[vehicleNumber][menuRow - 1] = false;
+      drawDisplay();
+    }
+
+    // Right button: Value +
+    if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState)) {
+      //joystickReversed[vehicleNumber][menuRow - 1] = !joystickReversed[vehicleNumber][menuRow - 1];
+      joystickReversed[vehicleNumber][menuRow - 1] = true;
+      drawDisplay();
+    }
+  }
+
+  // Menu buttons:
+
+  // Select button: opens the menu and scrolls through menu entries
+  if (DRE(digitalRead(BUTTON_SEL), selButtonState)) {
+    activeScreen = 11; // 11 = Menu screen
+    menuRow ++;
+    if (menuRow > 4) menuRow = 1;
     drawDisplay();
   }
 
-  // Right button S3: Change transmission mode. Radio <> IR
-  if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState)) {
-    IrMode = !IrMode;
+// Back button: closes the menu and saves changed entries in the EEPROM
+  if (DRE(digitalRead(BUTTON_BACK), backButtonState)) {
+    activeScreen = 1; // 1 = Main screen
+    menuRow = 0;
     drawDisplay();
+    EEPROM.updateBlock(address, joystickReversed);
   }
 }
 
@@ -253,6 +323,13 @@ void readButtons() {
 // JOYSTICKS
 // =======================================================================================================
 //
+
+// Mapping and reversing function
+byte mapJoystick(byte input, byte minOut, byte maxOut, boolean reverse) {
+  if (reverse) return map(analogRead(input), 0, 1023, maxOut, minOut); // reversed
+  else return map(analogRead(input), 0, 1023, minOut, maxOut); // not reversed
+}
+
 void readJoysticks() {
 
   // save previous joystick positions
@@ -262,10 +339,10 @@ void readJoysticks() {
   byte previousAxis4 = data.axis4;
 
   // Read current joystick positions
-  data.axis1 = map(analogRead(A1), 0, 1023, 0, 100); // Aileron (Steering for car)
-  data.axis2 = map(analogRead(A0), 0, 1023, 0, 100); // Elevator
-  data.axis3 = map(analogRead(A3), 0, 1023, 0, 100); // Throttle
-  data.axis4 = map(analogRead(A2), 0, 1023, 0, 100); // Rudder
+  data.axis1 = mapJoystick(A1, 0, 100, joystickReversed[vehicleNumber][0]); // Aileron (Steering for car)
+  data.axis2 = mapJoystick(A0, 0, 100, joystickReversed[vehicleNumber][1]); // Elevator
+  data.axis3 = mapJoystick(A3, 0, 100, joystickReversed[vehicleNumber][2]); // Throttle
+  data.axis4 = mapJoystick(A2, 0, 100, joystickReversed[vehicleNumber][3]); // Rudder
 
   // Only allow display refresh, if no value has changed!
   if (previousAxis1 != data.axis1 ||
@@ -481,9 +558,14 @@ void drawDisplay() {
 
         // Tx: data ----
         u8g.setPrintPos(3, 10);
-        if (IrMode) u8g.print("Tx: IR   ");
-        else u8g.print("Tx: 2.4G ");
-        u8g.print(vehicleNumber);
+        if (IrMode) {
+          u8g.print("Tx: IR   ");
+          u8g.print(pfChannel + 1);
+        }
+        else {
+          u8g.print("Tx: 2.4G ");
+          u8g.print(vehicleNumber);
+        }
 
         u8g.setPrintPos(3, 25);
         u8g.print("Vcc: ");
@@ -529,6 +611,42 @@ void drawDisplay() {
             }
           }
         }
+
+        break;
+
+      case 11: // Screen # 11 Menu 1 (channel reversing)-----------------------------------
+
+        u8g.setPrintPos(0, 10);
+        u8g.print("Channel Reversing (");
+        u8g.print(vehicleNumber);
+        u8g.print(")");
+
+        // Dividing Line
+        u8g.drawLine(0, 13, 128, 13);
+
+        // Cursor
+        if (menuRow == 1) u8g.setPrintPos(0, 25);
+        if (menuRow == 2) u8g.setPrintPos(0, 35);
+        if (menuRow == 3) u8g.setPrintPos(0, 45);
+        if (menuRow == 4) u8g.setPrintPos(0, 55);
+        u8g.print(">");
+
+        // Servos
+        u8g.setPrintPos(10, 25);
+        u8g.print("CH. 1 (R -): ");
+        u8g.print(joystickReversed[vehicleNumber][0]);
+
+        u8g.setPrintPos(10, 35);
+        u8g.print("CH. 2 (R |): ");
+        u8g.print(joystickReversed[vehicleNumber][1]);
+
+        u8g.setPrintPos(10, 45);
+        u8g.print("CH. 3 (L |): ");
+        u8g.print(joystickReversed[vehicleNumber][2]);
+
+        u8g.setPrintPos(10, 55);
+        u8g.print("CH. 4 (L -): ");
+        u8g.print(joystickReversed[vehicleNumber][3]);
 
         break;
     }
