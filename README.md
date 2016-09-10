@@ -8,7 +8,7 @@
 - 3.3V, 8MHz Pro Mini (a Pro Micro is not supported anymore due to additional functionality)
 - 2.4GHz NRF24L01 radio module
 - Support for 0.96" I2C OLED
-- Configuration menu for: Channel direction reversing (independent for each vehicle)
+- Configuration menu for: Channel direction reversing, servo travel adjustment (independent for each vehicle)
 - Configuration values are stored in EEPROM
 - very compact
 - Eagle PCB included

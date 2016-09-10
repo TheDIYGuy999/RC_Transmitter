@@ -1,12 +1,13 @@
-// Micro RC Project. a tiny little 2.4GHz RC unit!
+// Micro RC Project. A tiny little 2.4GHz and LEGO "Power Functions" IR RC transmitter!
 // 3.3V, 8MHz Pro Mini, 2.4GHz NRF24L01 radio module
 // SSD 1306 128 x 63 0.96" OLED
 // Custom PCB from OSH Park
 // Menu for the following:
 // -Channel reversing
-// -Value changes are stored in EEPROM
+// -Channel travel limitation in steps of 5%
+// -Value changes are stored in EEPROM, individually per vehicle
 
-float codeVersion = 1.1;
+float codeVersion = 1.2;
 
 //
 // =======================================================================================================
@@ -30,8 +31,7 @@ float codeVersion = 1.1;
 #include <EEPROMex.h> // https://github.com/thijse/Arduino-EEPROMEx
 #include <LegoIr.h> // https://github.com/TheDIYGuy999/LegoIr
 #include <statusLED.h> // https://github.com/TheDIYGuy999/statusLED
-#include "U8glib.h"
-
+#include "U8glib.h" // https://github.com/olikraus/u8glib
 
 // Tabs
 #include "readVCC.h"
@@ -92,7 +92,7 @@ float txBatt;
 SimpleTimer timer;
 
 //Joystick reverse
-boolean joystickReversed[maxVehicleNumber + 1][4] = { // 5 + 1 Vehicle Addresses, 4 Servos
+boolean joystickReversed[maxVehicleNumber + 1][4] = { // 1 + 5 Vehicle Addresses, 4 Servos
   {false, false, false, false}, // Address 0 used for EEPROM initialisation
 
   {false, false, false, false}, // Address 1
@@ -100,6 +100,28 @@ boolean joystickReversed[maxVehicleNumber + 1][4] = { // 5 + 1 Vehicle Addresses
   {false, false, false, false}, // Address 3
   {false, false, false, false}, // Address 4
   {false, false, false, false}, // Address 5
+};
+
+//Joystick percent negative
+byte joystickPercentNegative[maxVehicleNumber + 1][4] = { // 1 + 5 Vehicle Addresses, 4 Servos
+  {100, 100, 100, 100}, // Address 0 not used
+
+  {100, 100, 100, 100}, // Address 1
+  {100, 100, 100, 100}, // Address 2
+  {100, 100, 100, 100}, // Address 3
+  {100, 100, 100, 100}, // Address 4
+  {100, 100, 100, 100}, // Address 5
+};
+
+//Joystick percent positive
+byte joystickPercentPositive[maxVehicleNumber + 1][4] = { // 1 + 5 Vehicle Addresses, 4 Servos
+  {100, 100, 100, 100}, // Address 0 not used
+
+  {100, 100, 100, 100}, // Address 1
+  {100, 100, 100, 100}, // Address 2
+  {100, 100, 100, 100}, // Address 3
+  {100, 100, 100, 100}, // Address 4
+  {100, 100, 100, 100}, // Address 5
 };
 
 // Joystick Buttons
@@ -138,7 +160,9 @@ boolean displayLocked = true;
 byte menuRow = 0; // Menu active cursor line
 
 // EEPROM
-int address = 0;
+int addressReverse = 0; // Blocks of 6 x 4 bytes = 32 bytes each!
+int addressNegative = 32;
+int addressPositive = 64;
 
 //
 // =======================================================================================================
@@ -201,11 +225,18 @@ void setup() {
 #endif
 
   // EEPROM setup
-  EEPROM.readBlock(address, joystickReversed); // re-load all values from the EEPROM
+  EEPROM.readBlock(addressReverse, joystickReversed); // re-load all arrays from the EEPROM
+  EEPROM.readBlock(addressNegative, joystickPercentNegative);
+  EEPROM.readBlock(addressPositive, joystickPercentPositive);
 
-  if (joystickReversed[0][0]) { // 255 is standard after a program download, so we have to set all the booleans to "0"!
-    memset(joystickReversed, 0, sizeof(joystickReversed));
-    EEPROM.updateBlock(address, joystickReversed);
+  if (joystickReversed[0][0]) { // 255 is EEPROM default after a program download,
+    // this indicates that we have to initialise the EEPROM with our default values!
+    memset(joystickReversed, 0, sizeof(joystickReversed)); // init arrays first
+    memset(joystickPercentNegative, 100, sizeof(joystickPercentNegative));
+    memset(joystickPercentPositive, 100, sizeof(joystickPercentPositive));
+    EEPROM.updateBlock(addressReverse, joystickReversed); // then write defaults to EEPROM
+    EEPROM.updateBlock(addressNegative, joystickPercentNegative);
+    EEPROM.updateBlock(addressPositive, joystickPercentPositive);
   }
 
   // LED setup
@@ -253,7 +284,25 @@ void setup() {
 // =======================================================================================================
 //
 
+// Sub function for channel travel adjustment and limitation ****
+void travelAdjust(boolean upDn) {
+  byte inc = 5;
+  if (upDn) inc = 5; // Direction +
+  else inc = -5; // -
+
+  if ( (menuRow & 0x01) == 0) {// even (2nd column)
+    joystickPercentPositive[vehicleNumber][(menuRow - 6) / 2 ] += inc; // row 6 - 12 = 0 - 3
+  }
+  else { // odd (1st column)
+    joystickPercentNegative[vehicleNumber][(menuRow - 5) / 2 ] += inc;  // row 5 - 11 = 0 - 3
+  }
+  joystickPercentPositive[vehicleNumber][(menuRow - 6) / 2 ] = constrain(joystickPercentPositive[vehicleNumber][(menuRow - 6) / 2 ], 20, 100);
+  joystickPercentNegative[vehicleNumber][(menuRow - 5) / 2 ] = constrain(joystickPercentNegative[vehicleNumber][(menuRow - 5) / 2 ], 20, 100);
+}
+
+// Main button function ****
 void readButtons() {
+
   // Left joystick button (Mode 1)
   if (DRE(digitalRead(JOYSTICK_BUTTON_LEFT), leftJoystickButtonState)) {
     data.mode1 = !data.mode1;
@@ -286,15 +335,23 @@ void readButtons() {
   else { // if menu is displayed -----------
     // Left button: Value -
     if (DRE(digitalRead(BUTTON_LEFT), leftButtonState)) {
-      //joystickReversed[vehicleNumber][menuRow - 1] = !joystickReversed[vehicleNumber][menuRow - 1];
-      joystickReversed[vehicleNumber][menuRow - 1] = false;
+      if (activeScreen == 11) {
+        joystickReversed[vehicleNumber][menuRow - 1] = false;
+      }
+      if (activeScreen == 12) {
+        travelAdjust(false); // -
+      }
       drawDisplay();
     }
 
     // Right button: Value +
     if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState)) {
-      //joystickReversed[vehicleNumber][menuRow - 1] = !joystickReversed[vehicleNumber][menuRow - 1];
-      joystickReversed[vehicleNumber][menuRow - 1] = true;
+      if (activeScreen == 11) {
+        joystickReversed[vehicleNumber][menuRow - 1] = true;
+      }
+      if (activeScreen == 12) {
+        travelAdjust(true); // +
+      }
       drawDisplay();
     }
   }
@@ -303,18 +360,24 @@ void readButtons() {
 
   // Select button: opens the menu and scrolls through menu entries
   if (DRE(digitalRead(BUTTON_SEL), selButtonState)) {
-    activeScreen = 11; // 11 = Menu screen
+    activeScreen = 11; // 11 = Menu screen 1
     menuRow ++;
-    if (menuRow > 4) menuRow = 1;
+    if (menuRow > 4) activeScreen = 12; // 12 = Menu screen 2
+    if (menuRow > 12) {
+      activeScreen = 11; // Back to menu 1, entry 1
+      menuRow = 1;
+    }
     drawDisplay();
   }
 
-// Back button: closes the menu and saves changed entries in the EEPROM
+  // Back button: closes the menu and saves changed entries in the EEPROM
   if (DRE(digitalRead(BUTTON_BACK), backButtonState)) {
     activeScreen = 1; // 1 = Main screen
     menuRow = 0;
     drawDisplay();
-    EEPROM.updateBlock(address, joystickReversed);
+    EEPROM.updateBlock(addressReverse, joystickReversed); // update changed values in EEPROM
+    EEPROM.updateBlock(addressNegative, joystickPercentNegative);
+    EEPROM.updateBlock(addressPositive, joystickPercentPositive);
   }
 }
 
@@ -325,9 +388,13 @@ void readButtons() {
 //
 
 // Mapping and reversing function
-byte mapJoystick(byte input, byte minOut, byte maxOut, boolean reverse) {
-  if (reverse) return map(analogRead(input), 0, 1023, maxOut, minOut); // reversed
-  else return map(analogRead(input), 0, 1023, minOut, maxOut); // not reversed
+byte mapJoystick(byte input, byte arrayNo) {
+  if (joystickReversed[vehicleNumber][arrayNo]) { // reversed
+    return map(analogRead(input), 0, 1023, (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50), (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2));
+  }
+  else { // not reversed
+    return map(analogRead(input), 0, 1023, (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2), (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50));
+  }
 }
 
 void readJoysticks() {
@@ -338,11 +405,11 @@ void readJoysticks() {
   byte previousAxis3 = data.axis3;
   byte previousAxis4 = data.axis4;
 
-  // Read current joystick positions
-  data.axis1 = mapJoystick(A1, 0, 100, joystickReversed[vehicleNumber][0]); // Aileron (Steering for car)
-  data.axis2 = mapJoystick(A0, 0, 100, joystickReversed[vehicleNumber][1]); // Elevator
-  data.axis3 = mapJoystick(A3, 0, 100, joystickReversed[vehicleNumber][2]); // Throttle
-  data.axis4 = mapJoystick(A2, 0, 100, joystickReversed[vehicleNumber][3]); // Rudder
+  // Read current joystick positions, then scale and reverse output signals, if necessary
+  data.axis1 = mapJoystick(A1, 0); // Aileron (Steering for car)
+  data.axis2 = mapJoystick(A0, 1); // Elevator
+  data.axis3 = mapJoystick(A3, 2); // Throttle
+  data.axis4 = mapJoystick(A2, 3); // Rudder
 
   // Only allow display refresh, if no value has changed!
   if (previousAxis1 != data.axis1 ||
@@ -533,7 +600,7 @@ void drawDisplay() {
     switch (activeScreen) {
       case 0: // Screen # 0 splash screen-----------------------------------
 
-        u8g.drawStr(3, 10, "Micro RC Controller");
+        u8g.drawStr(3, 10, "Micro RC Transmitter");
 
         // Dividing Line
         u8g.drawLine(0, 13, 128, 13);
@@ -543,7 +610,7 @@ void drawDisplay() {
         u8g.print("SW Version: ");
         u8g.print(codeVersion);
 
-        u8g.setPrintPos(3, 45);
+        u8g.setPrintPos(3, 43);
         u8g.print("created by:");
         u8g.setPrintPos(3, 55);
         u8g.print("TheDIYGuy999");
@@ -634,7 +701,7 @@ void drawDisplay() {
         // Servos
         u8g.setPrintPos(10, 25);
         u8g.print("CH. 1 (R -): ");
-        u8g.print(joystickReversed[vehicleNumber][0]);
+        u8g.print(joystickReversed[vehicleNumber][0]); // 0 = Channel 1 etc.
 
         u8g.setPrintPos(10, 35);
         u8g.print("CH. 2 (R |): ");
@@ -647,6 +714,54 @@ void drawDisplay() {
         u8g.setPrintPos(10, 55);
         u8g.print("CH. 4 (L -): ");
         u8g.print(joystickReversed[vehicleNumber][3]);
+
+        break;
+
+      case 12: // Screen # 12 Menu 2 (channel travel limitation)-----------------------------------
+
+        u8g.setPrintPos(0, 10);
+        u8g.print("Channel % - & + (");
+        u8g.print(vehicleNumber);
+        u8g.print(")");
+
+        // Dividing Line
+        u8g.drawLine(0, 13, 128, 13);
+
+        // Cursor
+        if (menuRow == 5) u8g.setPrintPos(45, 25);
+        if (menuRow == 6) u8g.setPrintPos(90, 25);
+        if (menuRow == 7) u8g.setPrintPos(45, 35);
+        if (menuRow == 8) u8g.setPrintPos(90, 35);
+        if (menuRow == 9) u8g.setPrintPos(45, 45);
+        if (menuRow == 10) u8g.setPrintPos(90, 45);
+        if (menuRow == 11) u8g.setPrintPos(45, 55);
+        if (menuRow == 12) u8g.setPrintPos(90, 55);
+        u8g.print(">");
+
+        // Servo travel percentage
+        u8g.setPrintPos(0, 25);
+        u8g.print("CH. 1:   ");
+        u8g.print(joystickPercentNegative[vehicleNumber][0]); // 0 = Channel 1 etc.
+        u8g.setPrintPos(100, 25);
+        u8g.print(joystickPercentPositive[vehicleNumber][0]);
+
+        u8g.setPrintPos(0, 35);
+        u8g.print("CH. 2:   ");
+        u8g.print(joystickPercentNegative[vehicleNumber][1]);
+        u8g.setPrintPos(100, 35);
+        u8g.print(joystickPercentPositive[vehicleNumber][1]);
+
+        u8g.setPrintPos(0, 45);
+        u8g.print("CH. 3:   ");
+        u8g.print(joystickPercentNegative[vehicleNumber][2]);
+        u8g.setPrintPos(100, 45);
+        u8g.print(joystickPercentPositive[vehicleNumber][2]);
+
+        u8g.setPrintPos(0, 55);
+        u8g.print("CH. 4:   ");
+        u8g.print(joystickPercentNegative[vehicleNumber][3]);
+        u8g.setPrintPos(100, 55);
+        u8g.print(joystickPercentPositive[vehicleNumber][3]);
 
         break;
     }
