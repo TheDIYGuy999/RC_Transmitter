@@ -18580,8 +18580,8 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <part name="C1" library="rcl" deviceset="CPOL-EU" device="B45181A" value="3.3uF"/>
 <part name="D4" library="SparkFun-LED" deviceset="LED" device="3MM"/>
 <part name="D5" library="SparkFun-LED" deviceset="LED" device="3MM"/>
-<part name="R5" library="rcl" deviceset="R-EU_" device="0207/10" value="100R"/>
-<part name="R6" library="rcl" deviceset="R-EU_" device="0207/10" value="100R"/>
+<part name="R5" library="rcl" deviceset="R-EU_" device="0207/10" value="150R"/>
+<part name="R6" library="rcl" deviceset="R-EU_" device="0207/10" value="150R"/>
 <part name="GND11" library="supply1" deviceset="GND" device=""/>
 <part name="GND12" library="supply1" deviceset="GND" device=""/>
 <part name="GND5" library="supply1" deviceset="GND" device=""/>
@@ -18606,7 +18606,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <part name="C2" library="rcl" deviceset="CPOL-EU" device="B45181A" value="3.3uF"/>
 <part name="D2" library="SparkFun-LED" deviceset="LED" device="5MM"/>
 <part name="D1" library="diode" deviceset="1N4004" device=""/>
-<part name="R3" library="rcl" deviceset="R-EU_" device="0207/10" value="100R"/>
+<part name="R3" library="rcl" deviceset="R-EU_" device="0207/10" value="150R"/>
 <part name="R4" library="rcl" deviceset="R-EU_" device="0207/10" value="10R"/>
 <part name="R1" library="rcl" deviceset="R-EU_" device="0207/10" value="20k"/>
 <part name="R2" library="rcl" deviceset="R-EU_" device="0207/10" value="10k"/>
@@ -18643,7 +18643,8 @@ You are welcome to use this library for commercial purposes. For attribution, we
 Transmitter
 V1.2</text>
 <text x="294.64" y="83.82" size="1.778" layer="91" rot="R90">White LED</text>
-<text x="312.42" y="83.82" size="1.778" layer="91" rot="R90">IR LED 950nm</text>
+<text x="312.42" y="83.82" size="1.778" layer="91" rot="R90">IR LED 950nm
+TSAL6200</text>
 <text x="327.66" y="111.76" size="1.778" layer="91">IR Transmitter</text>
 <text x="238.76" y="147.32" size="1.778" layer="91">Radio Transmitter Header</text>
 <text x="22.86" y="243.84" size="1.778" layer="91">4x AA battery holder
