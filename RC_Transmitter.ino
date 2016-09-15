@@ -6,8 +6,10 @@
 // -Channel reversing
 // -Channel travel limitation in steps of 5%
 // -Value changes are stored in EEPROM, individually per vehicle
+// NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
-float codeVersion = 1.2;
+const float codeVersion = 1.21; // Software revision
+const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 //
 // =======================================================================================================
@@ -173,7 +175,11 @@ int addressPositive = 64;
 void setupRadio() {
   radio.begin();
   radio.setChannel(1);
-  radio.setPALevel(RF24_PA_LOW); // Set Power Amplifier (PA) level to one of four levels: RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
+  
+  // Set Power Amplifier (PA) level to one of four levels: RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
+  if (boardVersion < 1.1 ) radio.setPALevel(RF24_PA_LOW); // No independent NRF24L01 3.3 PSU, so only "LOW" transmission level allowed
+  else radio.setPALevel(RF24_PA_MAX); // Independent NRF24L01 3.3 PSU, so "FULL" transmission level allowed
+  
   radio.setDataRate(RF24_250KBPS);
   radio.setAutoAck(true);                  // Ensure autoACK is enabled
   radio.enableAckPayload();
@@ -607,8 +613,12 @@ void drawDisplay() {
 
         // Software version
         u8g.setPrintPos(3, 30);
-        u8g.print("SW Version: ");
+        u8g.print("SW: ");
         u8g.print(codeVersion);
+
+        // Hardware version
+        u8g.print(" HW: ");
+        u8g.print(boardVersion);
 
         u8g.setPrintPos(3, 43);
         u8g.print("created by:");

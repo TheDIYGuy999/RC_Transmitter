@@ -10,6 +10,7 @@
 - Support for 0.96" I2C OLED
 - Configuration menu for: Channel direction reversing, servo travel adjustment (independent for each vehicle)
 - Configuration values are stored in EEPROM
+- NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 - very compact
 - Eagle PCB included
 
