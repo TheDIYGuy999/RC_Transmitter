@@ -8,7 +8,7 @@
 // -Value changes are stored in EEPROM, individually per vehicle
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
-const float codeVersion = 1.21; // Software revision
+const float codeVersion = 1.22; // Software revision
 const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 //
@@ -181,7 +181,7 @@ void setupRadio() {
   else radio.setPALevel(RF24_PA_MAX); // Independent NRF24L01 3.3 PSU, so "FULL" transmission level allowed
   
   radio.setDataRate(RF24_250KBPS);
-  radio.setAutoAck(true);                  // Ensure autoACK is enabled
+  radio.setAutoAck(pipeOut[vehicleNumber - 1], true); // Ensure autoACK is enabled
   radio.enableAckPayload();
   radio.enableDynamicPayloads();
   radio.setRetries(5, 5);                  // 5x250us delay (blocking!!), max. 5 retries
@@ -500,8 +500,8 @@ void transmitRadio() {
     }
   }
 
-  // if the transmission was not confirmed (from the receiver) after > 200ms...
-  if (millis() - previousSuccessfulTransmission > 200) {
+  // if the transmission was not confirmed (from the receiver) after > 1s...
+  if (millis() - previousSuccessfulTransmission > 1000) {
     greenLED.on();
     transmissionState = false;
     memset(&payload, 0, sizeof(payload)); // clear the payload array, if transmission error
