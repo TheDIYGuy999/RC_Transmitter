@@ -1,4 +1,4 @@
-// Micro RC Project. A tiny little 2.4GHz and LEGO "Power Functions" IR RC transmitter!
+// Micro RC Project. A tiny little 2.4GHz and LEGO "Power Functions" / "MECCANO" IR RC transmitter!
 // 3.3V, 8MHz Pro Mini, 2.4GHz NRF24L01 radio module
 // SSD 1306 128 x 63 0.96" OLED
 // Custom PCB from OSH Park
@@ -8,7 +8,7 @@
 // -Value changes are stored in EEPROM, individually per vehicle
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
-const float codeVersion = 1.22; // Software revision
+const float codeVersion = 1.3; // Software revision
 const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 //
@@ -33,10 +33,11 @@ const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD RE
 #include <EEPROMex.h> // https://github.com/thijse/Arduino-EEPROMEx
 #include <LegoIr.h> // https://github.com/TheDIYGuy999/LegoIr
 #include <statusLED.h> // https://github.com/TheDIYGuy999/statusLED
-#include "U8glib.h" // https://github.com/olikraus/u8glib
+#include <U8glib.h> // https://github.com/olikraus/u8glib
 
-// Tabs
+// Tabs (header files in sketch directory)
 #include "readVCC.h"
+#include "MeccanoIr.h" // https://github.com/TheDIYGuy999/MeccanoIr
 
 //
 // =======================================================================================================
@@ -45,11 +46,17 @@ const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD RE
 //
 
 // Is the radio or IR transmission mode active?
-boolean IrMode = false; // Radio mode is active by default
+byte transmissionMode = 1; // Radio mode is active by default
 
 // Vehicle address
 int vehicleNumber = 1; // Vehicle number one is active by default
 const int maxVehicleNumber = 5;
+
+// Radio channels (126 channels are supported)
+byte chPointer = 0; // Channel 1 (the first entry of the array) is active by default
+const byte NRFchannel[] {
+  1, 2
+};
 
 // the ID number of the used "radio pipe" must match with the programmed ID on the vehicle receiver!
 const uint64_t pipeOut[maxVehicleNumber] = { 0xE9E8F0F0B1LL, 0xE9E8F0F0B2LL, 0xE9E8F0F0B3LL, 0xE9E8F0F0B4LL, 0xE9E8F0F0B5LL };
@@ -73,6 +80,7 @@ struct ackPayload {
   float vcc; // vehicle vcc voltage
   float batteryVoltage; // vehicle battery voltage
   boolean batteryOk; // the vehicle battery voltage is OK!
+  byte channel = 1; // the channel number
 };
 ackPayload payload;
 
@@ -144,16 +152,16 @@ byte rightButtonState = 7;
 byte selButtonState = 7;
 byte backButtonState = 7;
 
-// Status LED objects (false = not inverted)
-statusLED greenLED(false); // green: ON = ransmitter ON, flashing = Communication with vehicle OK
-statusLED redLED(false); // red: ON = battery empty
-
 // macro for detection of rising edge and debouncing
 /*the state argument (which must be a variable) records the current and the last 3 reads
   by shifting one bit to the left at each read and bitwise anding with 15 (=0b1111).
   If the value is 7(=0b0111) we have one raising edge followed by 3 consecutive 1's.
   That would qualify as a debounced raising edge*/
 #define DRE(signal, state) (state=(state<<1)|(signal&1)&15)==7
+
+// Status LED objects (false = not inverted)
+statusLED greenLED(false); // green: ON = ransmitter ON, flashing = Communication with vehicle OK
+statusLED redLED(false); // red: ON = battery empty
 
 // OLED display
 U8GLIB_SH1106_128X64 u8g(U8G_I2C_OPT_FAST);  // I2C / TWI  FAST instead of NONE = 400kHz I2C!
@@ -174,12 +182,12 @@ int addressPositive = 64;
 
 void setupRadio() {
   radio.begin();
-  radio.setChannel(1);
-  
+  radio.setChannel(NRFchannel[chPointer]);
+
   // Set Power Amplifier (PA) level to one of four levels: RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
   if (boardVersion < 1.1 ) radio.setPALevel(RF24_PA_LOW); // No independent NRF24L01 3.3 PSU, so only "LOW" transmission level allowed
   else radio.setPALevel(RF24_PA_MAX); // Independent NRF24L01 3.3 PSU, so "FULL" transmission level allowed
-  
+
   radio.setDataRate(RF24_250KBPS);
   radio.setAutoAck(pipeOut[vehicleNumber - 1], true); // Ensure autoACK is enabled
   radio.enableAckPayload();
@@ -189,7 +197,7 @@ void setupRadio() {
 
 #ifdef DEBUG
   radio.printDetails();
-  delay(3000);
+  delay(1800);
 #endif
   radio.openWritingPipe(pipeOut[vehicleNumber - 1]); // Vehicle Number 1 = Array number 0, so -1!
 
@@ -231,7 +239,7 @@ void setup() {
 #endif
 
   // EEPROM setup
-  EEPROM.readBlock(addressReverse, joystickReversed); // re-load all arrays from the EEPROM
+  EEPROM.readBlock(addressReverse, joystickReversed); // restore all arrays from the EEPROM
   EEPROM.readBlock(addressNegative, joystickPercentNegative);
   EEPROM.readBlock(addressPositive, joystickPercentPositive);
 
@@ -264,7 +272,6 @@ void setup() {
   setupPowerfunctions();
 
   // Display setup
-  //u8g.setRot180(); // flip screen, if required
   u8g.setFontRefHeightExtendedText();
   u8g.setDefaultForegroundColor();
   u8g.setFontPosTop();
@@ -275,7 +282,7 @@ void setup() {
   activeScreen = 0; // 0 = splash screen active
   drawDisplay();
   activeScreen = 1; // switch to the main screen
-  delay(2500);
+  delay(1500);
   drawDisplay();
 
   // Periodically called functions
@@ -306,7 +313,7 @@ void travelAdjust(boolean upDn) {
   joystickPercentNegative[vehicleNumber][(menuRow - 5) / 2 ] = constrain(joystickPercentNegative[vehicleNumber][(menuRow - 5) / 2 ], 20, 100);
 }
 
-// Main button function ****
+// Main buttons function ****
 void readButtons() {
 
   // Left joystick button (Mode 1)
@@ -334,7 +341,8 @@ void readButtons() {
 
     // Right button: Change transmission mode. Radio <> IR
     if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState)) {
-      IrMode = !IrMode;
+      if (transmissionMode < 3) transmissionMode ++;
+      else transmissionMode = 1;
       drawDisplay();
     }
   }
@@ -481,6 +489,23 @@ void transmitLegoIr() {
 
 //
 // =======================================================================================================
+// TRANSMIT MECCANO / ERECTOR IR SIGNAL
+// =======================================================================================================
+//
+
+void transmitMeccanoIr() {
+  if (data.axis1 > 90) buildIrSignal(1); // A +
+  if (data.axis1 < 10) buildIrSignal(2); // A -
+  if (data.axis2 > 90) buildIrSignal(3); // B +
+  if (data.axis2 < 10) buildIrSignal(4); // B -
+  if (data.axis3 > 90) buildIrSignal(5); // C +
+  if (data.axis3 < 10) buildIrSignal(6); // C -
+  if (data.axis4 > 90) buildIrSignal(7); // D +
+  if (data.axis4 < 10) buildIrSignal(8); // D -
+}
+
+//
+// =======================================================================================================
 // TRANSMIT RADIO DATA
 // =======================================================================================================
 //
@@ -500,6 +525,14 @@ void transmitRadio() {
     }
   }
 
+  // Switch channel for next transmission
+  chPointer ++;
+  if (chPointer >= sizeof((*NRFchannel) / sizeof(byte))) chPointer = 0;
+  radio.setChannel(NRFchannel[chPointer]);
+
+
+
+
   // if the transmission was not confirmed (from the receiver) after > 1s...
   if (millis() - previousSuccessfulTransmission > 1000) {
     greenLED.on();
@@ -517,7 +550,7 @@ void transmitRadio() {
 #endif
   }
 
-  if (!displayLocked) {
+  if (!displayLocked) { // Only allow display refresh, if not locked ----
     // refresh transmission state on the display, if changed
     if (transmissionState != previousTransmissionState) {
       previousTransmissionState = transmissionState;
@@ -560,7 +593,7 @@ void transmitRadio() {
 void led() {
 
   // Red LED (ON = battery empty, number of pulses are indicating the vehicle number)
-  if (batteryOkTx && (payload.batteryOk || IrMode || !transmissionState) ) {
+  if (batteryOkTx && (payload.batteryOk || transmissionMode > 1 || !transmissionState) ) {
     redLED.flash(140, 150, 500, vehicleNumber); // ON, OFF, PAUSE, PULSES
   } else {
     redLED.on(); // Always ON = battery low voltage (Rx or Tx)
@@ -635,9 +668,13 @@ void drawDisplay() {
 
         // Tx: data ----
         u8g.setPrintPos(3, 10);
-        if (IrMode) {
+        if (transmissionMode > 1) {
           u8g.print("Tx: IR   ");
           u8g.print(pfChannel + 1);
+
+          u8g.setPrintPos(68, 10);
+          if (transmissionMode == 2) u8g.print("LEGO");
+          if (transmissionMode == 3) u8g.print("MECCANO");
         }
         else {
           u8g.print("Tx: 2.4G ");
@@ -653,7 +690,7 @@ void drawDisplay() {
         u8g.print(txBatt);
 
         // Rx: data. Only display the following content, if in radio mode ----
-        if (!IrMode) {
+        if (transmissionMode == 1) {
           u8g.setPrintPos(68, 10);
           if (transmissionState) {
             u8g.print("Rx: OK");
@@ -679,13 +716,17 @@ void drawDisplay() {
             u8g.print("Bat: ");
             u8g.print(payload.batteryVoltage);
 
-            u8g.setPrintPos(68, 55);
+            u8g.setPrintPos(68, 45);
             if (payload.batteryOk) {
               u8g.print("Bat. OK ");
             }
             else {
               u8g.print("Low Bat. ");
             }
+            u8g.setPrintPos(68, 55);
+            u8g.print("CH: ");
+            u8g.print(payload.channel);
+            //u8g.print(NRFchannel[chPointer]);
           }
         }
 
@@ -793,11 +834,9 @@ void loop() {
   readJoysticks();
 
   // Transmit data via infrared or 2.4GHz radio
-  if (IrMode) {
-    transmitLegoIr();
-  } else {
-    transmitRadio();
-  }
+  if (transmissionMode == 1) transmitRadio();
+  if (transmissionMode == 2) transmitLegoIr();
+  if (transmissionMode == 3) transmitMeccanoIr();
 
   // LED
   led();

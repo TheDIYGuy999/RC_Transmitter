@@ -1,6 +1,6 @@
 #This is an Arduino 2.4GHz radio and IR transmitter
 ## Features:
-- IR transmitter for LEGO Powerfunctions and trains
+- IR transmitter for "LEGO" Powerfunctions and trains as well as for "MECCANO" motors
 - 2.4GHz radio transmitter for RC cars, helicopters etc.
 - 4 analog axes, 2 mode switches (joystick buttons)
 - 4 push buttons for transmission mode and vehicle selection as well as menu navigation
@@ -13,6 +13,10 @@
 - NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 - very compact
 - Eagle PCB included
+
+New in V 1.3:
+- Infrared codes for "MECCANO" IR controlled motors. Separate library required: https://github.com/TheDIYGuy999/MeccanoIr
+- Multichannel transmission
 
 ## Usage
 
