@@ -22,7 +22,7 @@ long readVcc() {
   ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
 #endif
 
-  delay(2); // Wait for Vref to settle
+  delayMicroseconds(500); // Wait for Vref to settle (was delay(2) analogRead() will be affected, if < 300micros!!
   ADCSRA |= _BV(ADSC); // Start conversion
   while (bit_is_set(ADCSRA, ADSC)); // measuring
 

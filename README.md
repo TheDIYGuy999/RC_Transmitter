@@ -18,6 +18,13 @@ New in V 1.3:
 - Infrared codes for "MECCANO" IR controlled motors. Separate library required: https://github.com/TheDIYGuy999/MeccanoIr
 - Multichannel transmission
 
+New in V 1.4:
+- 10 vehicle addresses instead of 5
+- The "BACK" button can now be used (if the menu screen is not displayed on the OLED) as a momentary button, for example for a horn on the vehicle. It is sent as "data.momentary1"
+- The "A6" potentiometer connector is now integrated in the code and is sent to the vehicle as "data.pot1"
+- SimpleTimer library replaced with my own code, which uses significantly less memory
+
+
 ## Usage
 
 See pictures in this repo
