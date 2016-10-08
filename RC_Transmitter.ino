@@ -8,7 +8,7 @@
 // -Value changes are stored in EEPROM, individually per vehicle
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
-const float codeVersion = 1.4; // Software revision
+const float codeVersion = 1.41; // Software revision
 const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 //
@@ -655,12 +655,17 @@ void led() {
 
 void checkBattery() {
 
-  // Every 2000 ms
+  // Every 500 ms
   static unsigned long lastTrigger;
-  if (millis() - lastTrigger >= 2000) {
+  if (millis() - lastTrigger >= 500) {
     lastTrigger = millis();
 
+#if F_CPU == 16000000 // 16MHz / 5V
+    txBatt = (analogRead(BATTERY_DETECT_PIN) / 68.2) + 0.7; // 1023steps / 15V = 68.2 + 0.7 diode drop!
+#else // 8MHz / 3.3V
     txBatt = (analogRead(BATTERY_DETECT_PIN) / 103.33) + 0.7; // 1023steps / 9.9V = 103.33 + 0.7 diode drop!
+#endif
+
     txVcc = readVcc() / 1000.0 ;
 
     if (txBatt >= 4.4) {

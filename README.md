@@ -23,6 +23,10 @@ New in V 1.4:
 - The "BACK" button can now be used (if the menu screen is not displayed on the OLED) as a momentary button, for example for a horn on the vehicle. It is sent as "data.momentary1"
 - The "A6" potentiometer connector is now integrated in the code and is sent to the vehicle as "data.pot1"
 - SimpleTimer library replaced with my own code, which uses significantly less memory
+- EEPROM reset function added: press "Select" and "Back" during power on
+
+New in V 1.41:
+- Transmitter battery voltage now monitored correctly on 16MHz / 5V systems
 
 
 ## Usage
