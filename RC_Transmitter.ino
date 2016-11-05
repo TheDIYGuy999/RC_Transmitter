@@ -8,7 +8,7 @@
 // -Value changes are stored in EEPROM, individually per vehicle
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
-const float codeVersion = 1.41; // Software revision
+const float codeVersion = 1.42; // Software revision
 const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 //
@@ -559,6 +559,7 @@ void transmitRadio() {
   static boolean previousTransmissionState;
   static float previousRxVcc;
   static float previousRxVbatt;
+  static boolean previousBattState;
   static unsigned long previousSuccessfulTransmission;
 
   // Send radio data and check if transmission was successful
@@ -610,6 +611,12 @@ void transmitRadio() {
     // refresh Rx V Batt on the display, if changed more than +/- 0.3V
     if (payload.batteryVoltage - 0.3 >= previousRxVbatt || payload.batteryVoltage + 0.3 <= previousRxVbatt) {
       previousRxVbatt = payload.batteryVoltage;
+      drawDisplay();
+    }
+
+    // refresh battery state on the display, if changed
+    if (payload.batteryOk != previousBattState) {
+      previousBattState = payload.batteryOk;
       drawDisplay();
     }
   }

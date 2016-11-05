@@ -28,6 +28,9 @@ New in V 1.4:
 New in V 1.41:
 - Transmitter battery voltage now monitored correctly on 16MHz / 5V systems
 
+New in V 1.42:
+- Vehicle battery state change OLED bug fixed
+
 
 ## Usage
 
