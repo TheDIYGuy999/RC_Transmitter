@@ -31,6 +31,9 @@ New in V 1.41:
 New in V 1.42:
 - Vehicle battery state change OLED bug fixed
 
+New in V 1.43:
+- Radio module sleep mode active during IR mode is in use
+
 
 ## Usage
 

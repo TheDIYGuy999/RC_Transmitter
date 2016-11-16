@@ -8,7 +8,7 @@
 // -Value changes are stored in EEPROM, individually per vehicle
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
-const float codeVersion = 1.42; // Software revision
+const float codeVersion = 1.43; // Software revision
 const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 //
@@ -203,6 +203,8 @@ void setupRadio() {
   radio.begin();
   radio.setChannel(NRFchannel[chPointer]);
 
+  radio.powerUp();
+
   // Set Power Amplifier (PA) level to one of four levels: RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
   if (boardVersion < 1.1 ) radio.setPALevel(RF24_PA_LOW); // No independent NRF24L01 3.3 PSU, so only "LOW" transmission level allowed
   else radio.setPALevel(RF24_PA_MAX); // Independent NRF24L01 3.3 PSU, so "FULL" transmission level allowed
@@ -362,7 +364,10 @@ void readButtons() {
       // Right button: Change transmission mode. Radio <> IR
       if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState)) {
         if (transmissionMode < 3) transmissionMode ++;
-        else transmissionMode = 1;
+        else {
+          transmissionMode = 1;
+          setupRadio(); // Re-initialize radio, if we switch back to radio mode!
+        }
         drawDisplay();
       }
     }
@@ -562,77 +567,83 @@ void transmitRadio() {
   static boolean previousBattState;
   static unsigned long previousSuccessfulTransmission;
 
-  // Send radio data and check if transmission was successful
-  if (radio.write(&data, sizeof(struct RcData)) ) {
-    if (radio.isAckPayloadAvailable()) {
-      radio.read(&payload, sizeof(struct ackPayload)); // read the payload, if available
-      previousSuccessfulTransmission = millis();
+  if (transmissionMode == 1) { // If radio mode is active: ----
+
+    // Send radio data and check if transmission was successful
+    if (radio.write(&data, sizeof(struct RcData)) ) {
+      if (radio.isAckPayloadAvailable()) {
+        radio.read(&payload, sizeof(struct ackPayload)); // read the payload, if available
+        previousSuccessfulTransmission = millis();
+      }
     }
-  }
 
-  // Switch channel for next transmission
-  chPointer ++;
-  if (chPointer >= sizeof((*NRFchannel) / sizeof(byte))) chPointer = 0;
-  radio.setChannel(NRFchannel[chPointer]);
-
+    // Switch channel for next transmission
+    chPointer ++;
+    if (chPointer >= sizeof((*NRFchannel) / sizeof(byte))) chPointer = 0;
+    radio.setChannel(NRFchannel[chPointer]);
 
 
 
-  // if the transmission was not confirmed (from the receiver) after > 1s...
-  if (millis() - previousSuccessfulTransmission > 1000) {
-    greenLED.on();
-    transmissionState = false;
-    memset(&payload, 0, sizeof(payload)); // clear the payload array, if transmission error
+
+    // if the transmission was not confirmed (from the receiver) after > 1s...
+    if (millis() - previousSuccessfulTransmission > 1000) {
+      greenLED.on();
+      transmissionState = false;
+      memset(&payload, 0, sizeof(payload)); // clear the payload array, if transmission error
 #ifdef DEBUG
-    Serial.println("Data transmission error, check receiver!");
+      Serial.println("Data transmission error, check receiver!");
+#endif
+    }
+    else {
+      greenLED.flash(30, 100, 0, 0); //30, 100
+      transmissionState = true;
+#ifdef DEBUG
+      Serial.println("Data successfully transmitted");
+#endif
+    }
+
+    if (!displayLocked) { // Only allow display refresh, if not locked ----
+      // refresh transmission state on the display, if changed
+      if (transmissionState != previousTransmissionState) {
+        previousTransmissionState = transmissionState;
+        drawDisplay();
+      }
+
+      // refresh Rx Vcc on the display, if changed more than +/- 0.05V
+      if (payload.vcc - 0.05 >= previousRxVcc || payload.vcc + 0.05 <= previousRxVcc) {
+        previousRxVcc = payload.vcc;
+        drawDisplay();
+      }
+
+      // refresh Rx V Batt on the display, if changed more than +/- 0.3V
+      if (payload.batteryVoltage - 0.3 >= previousRxVbatt || payload.batteryVoltage + 0.3 <= previousRxVbatt) {
+        previousRxVbatt = payload.batteryVoltage;
+        drawDisplay();
+      }
+
+      // refresh battery state on the display, if changed
+      if (payload.batteryOk != previousBattState) {
+        previousBattState = payload.batteryOk;
+        drawDisplay();
+      }
+    }
+
+
+#ifdef DEBUG
+    Serial.print(data.axis1);
+    Serial.print("\t");
+    Serial.print(data.axis2);
+    Serial.print("\t");
+    Serial.print(data.axis3);
+    Serial.print("\t");
+    Serial.print(data.axis4);
+    Serial.print("\t");
+    Serial.println(F_CPU / 1000000, DEC);
 #endif
   }
-  else {
-    greenLED.flash(30, 100, 0, 0); //30, 100
-    transmissionState = true;
-#ifdef DEBUG
-    Serial.println("Data successfully transmitted");
-#endif
+  else { // else infrared mode is active: ----
+    radio.powerDown();
   }
-
-  if (!displayLocked) { // Only allow display refresh, if not locked ----
-    // refresh transmission state on the display, if changed
-    if (transmissionState != previousTransmissionState) {
-      previousTransmissionState = transmissionState;
-      drawDisplay();
-    }
-
-    // refresh Rx Vcc on the display, if changed more than +/- 0.05V
-    if (payload.vcc - 0.05 >= previousRxVcc || payload.vcc + 0.05 <= previousRxVcc) {
-      previousRxVcc = payload.vcc;
-      drawDisplay();
-    }
-
-    // refresh Rx V Batt on the display, if changed more than +/- 0.3V
-    if (payload.batteryVoltage - 0.3 >= previousRxVbatt || payload.batteryVoltage + 0.3 <= previousRxVbatt) {
-      previousRxVbatt = payload.batteryVoltage;
-      drawDisplay();
-    }
-
-    // refresh battery state on the display, if changed
-    if (payload.batteryOk != previousBattState) {
-      previousBattState = payload.batteryOk;
-      drawDisplay();
-    }
-  }
-
-
-#ifdef DEBUG
-  Serial.print(data.axis1);
-  Serial.print("\t");
-  Serial.print(data.axis2);
-  Serial.print("\t");
-  Serial.print(data.axis3);
-  Serial.print("\t");
-  Serial.print(data.axis4);
-  Serial.print("\t");
-  Serial.println(F_CPU / 1000000, DEC);
-#endif
 }
 
 //
@@ -902,7 +913,7 @@ void loop() {
   readButtons();
 
   // Transmit data via infrared or 2.4GHz radio
-  if (transmissionMode == 1) transmitRadio(); // 2.4 GHz radio
+  transmitRadio(); // 2.4 GHz radio
   if (transmissionMode == 2) transmitLegoIr(); // LEGO Infrared
   if (transmissionMode == 3) transmitMeccanoIr(); // MECCANO Infrared
 
