@@ -8,7 +8,7 @@
 // -Value changes are stored in EEPROM, individually per vehicle
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
-const float codeVersion = 1.43; // Software revision
+const float codeVersion = 1.5; // Software revision
 const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 //
@@ -543,14 +543,67 @@ void transmitLegoIr() {
 //
 
 void transmitMeccanoIr() {
-  if (data.axis1 > 90) buildIrSignal(1); // A +
-  if (data.axis1 < 10) buildIrSignal(2); // A -
-  if (data.axis2 > 90) buildIrSignal(3); // B +
-  if (data.axis2 < 10) buildIrSignal(4); // B -
-  if (data.axis3 > 90) buildIrSignal(5); // C +
-  if (data.axis3 < 10) buildIrSignal(6); // C -
-  if (data.axis4 > 90) buildIrSignal(7); // D +
-  if (data.axis4 < 10) buildIrSignal(8); // D -
+
+  static boolean A;
+  static boolean B;
+  static boolean C;
+  static boolean D;
+
+  // Channel A ----
+  if (data.axis1 > 90) { // A +
+    buildIrSignal(1);
+    A = true;
+  }
+  if (data.axis1 < 10) { // A -
+    buildIrSignal(2), A = true;
+    A = true;
+  }
+  if (data.axis1 < 90 && data.axis1 > 10 && A) { // A OFF
+    buildIrSignal(3);
+    A = false;
+  }
+
+  // Channel B ----
+  if (data.axis2 > 90) { // B +
+    buildIrSignal(4);
+    B = true;
+  }
+  if (data.axis2 < 10) { // B -
+    buildIrSignal(5), A = true;
+    B = true;
+  }
+  if (data.axis2 < 90 && data.axis2 > 10 && B) { // B OFF
+    buildIrSignal(6);
+    B = false;
+  }
+
+  // Channel C ----
+  if (data.axis3 > 90) { // C +
+    buildIrSignal(7);
+    C = true;
+  }
+  if (data.axis3 < 10) { // C -
+    buildIrSignal(8), A = true;
+    C = true;
+  }
+  if (data.axis3 < 90 && data.axis3 > 10 && C) { // C OFF
+    buildIrSignal(9);
+    C = false;
+  }
+
+  // Channel D ----
+  if (data.axis4 > 90) { // D +
+    buildIrSignal(10);
+    D = true;
+  }
+  if (data.axis4 < 10) { // D -
+    buildIrSignal(11), A = true;
+    D = true;
+  }
+  if (data.axis4 < 90 && data.axis4 > 10 && D) { // D OFF
+    buildIrSignal(12);
+    D = false;
+  }
 }
 
 //

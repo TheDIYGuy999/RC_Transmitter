@@ -32,7 +32,10 @@ New in V 1.42:
 - Vehicle battery state change OLED bug fixed
 
 New in V 1.43:
-- Radio module sleep mode active during IR mode is in use
+- Radio module sleep mode active while IR mode is in use
+
+New in V 1.5:
+- MECCANO IR support enhanced. Requires MECCANO library update to V 1.1
 
 
 ## Usage
