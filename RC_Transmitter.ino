@@ -9,7 +9,7 @@
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
 const float codeVersion = 1.5; // Software revision
-const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
+const float boardVersion = 1.1; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 //
 // =======================================================================================================
@@ -799,7 +799,7 @@ void drawDisplay() {
         u8g.setPrintPos(0, 10);
         if (transmissionMode > 1) {
           u8g.print("Tx: IR   ");
-          u8g.print(pfChannel + 1);
+          if (transmissionMode < 3) u8g.print(pfChannel + 1);
 
           u8g.setPrintPos(68, 10);
           if (transmissionMode == 2) u8g.print("LEGO");
