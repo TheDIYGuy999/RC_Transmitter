@@ -8,7 +8,7 @@
 // -Value changes are stored in EEPROM, individually per vehicle
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
-const float codeVersion = 1.5; // Software revision
+const float codeVersion = 1.6; // Software revision
 const float boardVersion = 1.1; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 //
@@ -18,6 +18,7 @@ const float boardVersion = 1.1; // Board revision (MUST MATCH WITH YOUR BOARD RE
 //
 
 //#define DEBUG // if not commented out, Serial.print() is active! For debugging only!!
+//#define OLED_DEBUG // if not commented out, an additional diagnostics screen is shown during startup
 
 //
 // =======================================================================================================
@@ -103,7 +104,7 @@ boolean batteryOkTx = false;
 float txVcc;
 float txBatt;
 
-//Joystick reverse
+//Joystick reversing
 boolean joystickReversed[maxVehicleNumber + 1][4] = { // 1 + 10 Vehicle Addresses, 4 Servos
   {false, false, false, false}, // Address 0 used for EEPROM initialisation
 
@@ -151,7 +152,13 @@ byte joystickPercentPositive[maxVehicleNumber + 1][4] = { // 1 + 10 Vehicle Addr
   {100, 100, 100, 100}, // Address 10
 };
 
-// Joystick Buttons
+// Joysticks
+#define JOYSTICK_1 A1
+#define JOYSTICK_2 A0
+#define JOYSTICK_3 A3
+#define JOYSTICK_4 A2
+
+// Joystick push buttons
 #define JOYSTICK_BUTTON_LEFT 4
 #define JOYSTICK_BUTTON_RIGHT 2
 
@@ -287,6 +294,10 @@ void setup() {
     EEPROM.updateBlock(addressPositive, joystickPercentPositive);
   }
 
+  // Joystick setup
+  JoystickOffset(); // Compute all joystick center points
+  readJoysticks(); // Then do the first jocstick read
+
   // Radio setup
   setupRadio();
 
@@ -303,6 +314,11 @@ void setup() {
   checkBattery();
   activeScreen = 0; // 0 = splash screen active
   drawDisplay();
+#ifdef OLED_DEBUG
+  activeScreen = 100; // switch to the diagnostics screen
+  delay(1500);
+  drawDisplay();
+#endif
   activeScreen = 1; // switch to the main screen
   delay(1500);
   drawDisplay();
@@ -339,13 +355,13 @@ void readButtons() {
     lastTrigger = millis();
 
     // Left joystick button (Mode 1)
-    if (DRE(digitalRead(JOYSTICK_BUTTON_LEFT), leftJoystickButtonState)) {
+    if (DRE(digitalRead(JOYSTICK_BUTTON_LEFT), leftJoystickButtonState) && (transmissionMode == 1)) {
       data.mode1 = !data.mode1;
       drawDisplay();
     }
 
     // Right joystick button (Mode 2)
-    if (DRE(digitalRead(JOYSTICK_BUTTON_RIGHT), rightJoystickButtonState)) {
+    if (DRE(digitalRead(JOYSTICK_BUTTON_RIGHT), rightJoystickButtonState) && (transmissionMode == 1)) {
       data.mode2 = !data.mode2;
       drawDisplay();
     }
@@ -353,11 +369,11 @@ void readButtons() {
     if (activeScreen <= 10) { // if menu is not displayed ----------
 
       // Left button: Channel selection
-      if (DRE(digitalRead(BUTTON_LEFT), leftButtonState)) {
+      if (DRE(digitalRead(BUTTON_LEFT), leftButtonState) && (transmissionMode < 3)) {
         vehicleNumber ++;
         if (vehicleNumber > maxVehicleNumber) vehicleNumber = 1;
         setupRadio(); // Re-initialize the radio with the new pipe address
-        setupPowerfunctions(); // Re-initialize the IR transmitter with the new channel address
+        setupPowerfunctions(); // Re-initialize the LEGO IR transmitter with the new channel address
         drawDisplay();
       }
 
@@ -398,7 +414,7 @@ void readButtons() {
     // Menu buttons:
 
     // Select button: opens the menu and scrolls through menu entries
-    if (DRE(digitalRead(BUTTON_SEL), selButtonState)) {
+    if (DRE(digitalRead(BUTTON_SEL), selButtonState) && (transmissionMode == 1)) {
       activeScreen = 11; // 11 = Menu screen 1
       menuRow ++;
       if (menuRow > 4) activeScreen = 12; // 12 = Menu screen 2
@@ -433,18 +449,32 @@ void readButtons() {
 // =======================================================================================================
 //
 
+int offset[4]; // the auto calibration offset of each joystick
+
+// Auto-zero subfunction (called during setup) ----
+void JoystickOffset() {
+  offset[0] = 512 - analogRead(JOYSTICK_1);
+  offset[1] = 512 - analogRead(JOYSTICK_2);
+  offset[2] = 512 - analogRead(JOYSTICK_3);
+  offset[3] = 512 - analogRead(JOYSTICK_4);
+}
+
 // Mapping and reversing subfunction ----
 byte mapJoystick(byte input, byte arrayNo) {
+  int reading[4];
+  reading[arrayNo] = analogRead(input) + offset[arrayNo]; // read joysticks and add the offset
+  reading[arrayNo] = constrain(reading[arrayNo], 0, 1023); // then limit the result before we do more calculations below
+
   if (transmissionMode == 1) { // Radio mode
     if (joystickReversed[vehicleNumber][arrayNo]) { // reversed
-      return map(analogRead(input), 0, 1023, (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50), (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2));
+      return map(reading[arrayNo], 0, 1023, (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50), (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2));
     }
     else { // not reversed
-      return map(analogRead(input), 0, 1023, (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2), (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50));
+      return map(reading[arrayNo], 0, 1023, (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2), (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50));
     }
   }
   else { // IR mode
-    return map(analogRead(input), 0, 1023, 0, 100);
+    return map(reading[arrayNo], 0, 1023, 0, 100);
   }
 }
 
@@ -458,10 +488,10 @@ void readJoysticks() {
   byte previousAxis4 = data.axis4;
 
   // Read current joystick positions, then scale and reverse output signals, if necessary
-  data.axis1 = mapJoystick(A1, 0); // Aileron (Steering for car)
-  data.axis2 = mapJoystick(A0, 1); // Elevator
-  data.axis3 = mapJoystick(A3, 2); // Throttle
-  data.axis4 = mapJoystick(A2, 3); // Rudder
+  data.axis1 = mapJoystick(JOYSTICK_1, 0); // Aileron (Steering for car)
+  data.axis2 = mapJoystick(JOYSTICK_2, 1); // Elevator
+  data.axis3 = mapJoystick(JOYSTICK_3, 2); // Throttle
+  data.axis4 = mapJoystick(JOYSTICK_4, 3); // Rudder
 
   // Only allow display refresh, if no value has changed!
   if (previousAxis1 != data.axis1 ||
@@ -548,6 +578,9 @@ void transmitMeccanoIr() {
   static boolean B;
   static boolean C;
   static boolean D;
+
+  // Flash green LED
+  greenLED.flash(30, 1000, 0, 0);
 
   // Channel A ----
   if (data.axis1 > 90) { // A +
@@ -742,13 +775,13 @@ void checkBattery() {
     if (txBatt >= 4.4) {
       batteryOkTx = true;
 #ifdef DEBUG
-      Serial.print(batteryVolt);
+      Serial.print(txBatt);
       Serial.println(" Tx battery OK");
 #endif
     } else {
       batteryOkTx = false;
 #ifdef DEBUG
-      Serial.print(batteryVolt);
+      Serial.print(txBatt);
       Serial.println(" Tx battery empty!");
 #endif
     }
@@ -786,6 +819,26 @@ void drawDisplay() {
         u8g.print("created by:");
         u8g.setPrintPos(3, 55);
         u8g.print("TheDIYGuy999");
+
+        break;
+
+      case 100: // Screen # 100 diagnosis screen-----------------------------------
+
+        u8g.drawStr(3, 10, "Joystick readings:");
+
+        // Joysticks:
+        u8g.setPrintPos(3, 30);
+        u8g.print("Axis 1: ");
+        u8g.print(data.axis1);
+        u8g.setPrintPos(3, 40);
+        u8g.print("Axis 2: ");
+        u8g.print(data.axis2);
+        u8g.setPrintPos(3, 50);
+        u8g.print("Axis 3: ");
+        u8g.print(data.axis3);
+        u8g.setPrintPos(3, 60);
+        u8g.print("Axis 4: ");
+        u8g.print(data.axis4);
 
         break;
 
