@@ -9,7 +9,7 @@
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
 const float codeVersion = 1.6; // Software revision
-const float boardVersion = 1.1; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
+const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 //
 // =======================================================================================================
@@ -213,7 +213,7 @@ void setupRadio() {
   radio.powerUp();
 
   // Set Power Amplifier (PA) level to one of four levels: RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
-  if (boardVersion < 1.1 ) radio.setPALevel(RF24_PA_LOW); // No independent NRF24L01 3.3 PSU, so only "LOW" transmission level allowed
+  if (boardVersion < 1.1 ) radio.setPALevel(RF24_PA_MIN); // No independent NRF24L01 3.3 PSU, so only "MIN" transmission level allowed
   else radio.setPALevel(RF24_PA_MAX); // Independent NRF24L01 3.3 PSU, so "FULL" transmission level allowed
 
   radio.setDataRate(RF24_250KBPS);
