@@ -41,6 +41,10 @@ New in V 1.6:
 - Buttons locked, if not required in selected transmission mode. This ensures, that no variables can be changed "in background"
 - Automatic joystick zero point calibration after transmitter was switched on. This ensures, that you always have precise zero points, even if your potentiometers are not exacltly linear.
 
+New in V 1.7:
+- Support for 2 channel car style transmitters with steering wheel
+- The transmitter type can be seletced in the new "transmitterConfig.h" file
+- The potentiometers in some transmitters hit the mechanical endstop before the end of the electrical range is reached. This can now be compensated with the "range" variable
 
 
 ## Usage

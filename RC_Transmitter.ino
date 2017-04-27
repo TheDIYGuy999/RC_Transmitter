@@ -8,8 +8,7 @@
 // -Value changes are stored in EEPROM, individually per vehicle
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
-const float codeVersion = 1.6; // Software revision
-const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
+const float codeVersion = 1.7; // Software revision
 
 //
 // =======================================================================================================
@@ -37,6 +36,7 @@ const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD RE
 
 // Tabs (header files in sketch directory)
 #include "readVCC.h"
+#include "transmitterConfig.h"
 #include "MeccanoIr.h" // https://github.com/TheDIYGuy999/MeccanoIr
 
 //
@@ -378,13 +378,15 @@ void readButtons() {
       }
 
       // Right button: Change transmission mode. Radio <> IR
-      if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState)) {
-        if (transmissionMode < 3) transmissionMode ++;
-        else {
-          transmissionMode = 1;
-          setupRadio(); // Re-initialize radio, if we switch back to radio mode!
+      if (infrared) { // only, if transmitter has IR option
+        if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState)) {
+          if (transmissionMode < 3) transmissionMode ++;
+          else {
+            transmissionMode = 1;
+            setupRadio(); // Re-initialize radio, if we switch back to radio mode!
+          }
+          drawDisplay();
         }
-        drawDisplay();
       }
     }
     else { // if menu is displayed -----------
@@ -463,18 +465,18 @@ void JoystickOffset() {
 byte mapJoystick(byte input, byte arrayNo) {
   int reading[4];
   reading[arrayNo] = analogRead(input) + offset[arrayNo]; // read joysticks and add the offset
-  reading[arrayNo] = constrain(reading[arrayNo], 0, 1023); // then limit the result before we do more calculations below
+  reading[arrayNo] = constrain(reading[arrayNo], (1023 - range), range); // then limit the result before we do more calculations below
 
   if (transmissionMode == 1) { // Radio mode
     if (joystickReversed[vehicleNumber][arrayNo]) { // reversed
-      return map(reading[arrayNo], 0, 1023, (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50), (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2));
+      return map(reading[arrayNo], (1023 - range), range, (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50), (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2));
     }
     else { // not reversed
-      return map(reading[arrayNo], 0, 1023, (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2), (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50));
+      return map(reading[arrayNo], (1023 - range), range, (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2), (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50));
     }
   }
   else { // IR mode
-    return map(reading[arrayNo], 0, 1023, 0, 100);
+    return map(reading[arrayNo], (1023 - range), range, 0, 100);
   }
 }
 
@@ -487,11 +489,22 @@ void readJoysticks() {
   byte previousAxis3 = data.axis3;
   byte previousAxis4 = data.axis4;
 
-  // Read current joystick positions, then scale and reverse output signals, if necessary
+  // Read current joystick positions, then scale and reverse output signals, if necessary (only for the channels we have)
+#ifdef CH1
   data.axis1 = mapJoystick(JOYSTICK_1, 0); // Aileron (Steering for car)
+#endif
+
+#ifdef CH2
   data.axis2 = mapJoystick(JOYSTICK_2, 1); // Elevator
+#endif
+
+#ifdef CH3
   data.axis3 = mapJoystick(JOYSTICK_3, 2); // Throttle
+#endif
+
+#ifdef CH4
   data.axis4 = mapJoystick(JOYSTICK_4, 3); // Rudder
+#endif
 
   // Only allow display refresh, if no value has changed!
   if (previousAxis1 != data.axis1 ||
@@ -772,7 +785,7 @@ void checkBattery() {
 
     txVcc = readVcc() / 1000.0 ;
 
-    if (txBatt >= 4.4) {
+    if (txBatt >= cutoffVoltage) {
       batteryOkTx = true;
 #ifdef DEBUG
       Serial.print(txBatt);
