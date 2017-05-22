@@ -2,13 +2,13 @@
 // 3.3V, 8MHz Pro Mini, 2.4GHz NRF24L01 radio module
 // SSD 1306 128 x 63 0.96" OLED
 // Custom PCB from OSH Park
-// Menu for the following:
+// Menu for the following adjustments:
 // -Channel reversing
 // -Channel travel limitation in steps of 5%
 // -Value changes are stored in EEPROM, individually per vehicle
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
-const float codeVersion = 1.7; // Software revision
+const float codeVersion = 1.8; // Software revision
 
 //
 // =======================================================================================================
@@ -467,6 +467,13 @@ byte mapJoystick(byte input, byte arrayNo) {
   reading[arrayNo] = analogRead(input) + offset[arrayNo]; // read joysticks and add the offset
   reading[arrayNo] = constrain(reading[arrayNo], (1023 - range), range); // then limit the result before we do more calculations below
 
+#ifdef CONFIG_2_CH // In most "car style" transmitters, less than a half of the throttle potentiometer range is used for the reverse. So we have to enhance this range!
+    if (reading[2] < (range / 2) ) {
+      reading[2] = constrain(reading[2], (range / 3), (range / 2)); // limit reverse range, which will be multiplied later
+      reading[2] = map(reading[2], (range / 3), (range / 2), 0, (range / 2)); // reverse range multiplied by 4
+    }
+#endif
+
   if (transmissionMode == 1) { // Radio mode
     if (joystickReversed[vehicleNumber][arrayNo]) { // reversed
       return map(reading[arrayNo], (1023 - range), range, (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50), (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2));
@@ -778,9 +785,9 @@ void checkBattery() {
     lastTrigger = millis();
 
 #if F_CPU == 16000000 // 16MHz / 5V
-    txBatt = (analogRead(BATTERY_DETECT_PIN) / 68.2) + 0.7; // 1023steps / 15V = 68.2 + 0.7 diode drop!
+    txBatt = (analogRead(BATTERY_DETECT_PIN) / 68.2) + diodeDrop; // 1023steps / 15V = 68.2 + 0.7 diode drop!
 #else // 8MHz / 3.3V
-    txBatt = (analogRead(BATTERY_DETECT_PIN) / 103.33) + 0.7; // 1023steps / 9.9V = 103.33 + 0.7 diode drop!
+    txBatt = (analogRead(BATTERY_DETECT_PIN) / 103.33) + diodeDrop; // 1023steps / 9.9V = 103.33 + 0.7 diode drop!
 #endif
 
     txVcc = readVcc() / 1000.0 ;

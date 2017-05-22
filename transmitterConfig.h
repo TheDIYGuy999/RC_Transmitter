@@ -14,7 +14,9 @@
 // Configuration for the standard "Micro RC" transmitter with 4 channels and IR support----------------------
 #ifdef CONFIG_MICRO_RC
 // Battery type
-float cutoffVoltage = 4.4; // 4 x Eneloop cell
+const float cutoffVoltage = 4.4; // 4 x Eneloop cell
+const float diodeDrop = 0.72;
+
 // Channels, we have
 #define CH1
 #define CH2
@@ -36,7 +38,8 @@ int range = 1023;
 // Configuration for a 2 channel transmitter with steering wheel. No IR support----------------------
 #ifdef CONFIG_2_CH
 // Battery type
-float cutoffVoltage = 4.4; // 4 x Eneloop cell
+const float cutoffVoltage = 4.4; // 4 x Eneloop cell
+const float diodeDrop = 0.3;
 
 // Channels, we have
 #define CH1

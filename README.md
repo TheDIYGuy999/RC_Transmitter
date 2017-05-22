@@ -46,6 +46,10 @@ New in V 1.7:
 - The transmitter type can be seletced in the new "transmitterConfig.h" file
 - The potentiometers in some transmitters hit the mechanical endstop before the end of the electrical range is reached. This can now be compensated with the "range" variable
 
+New in V 1.8:
+- In most car style transmitters, the reverse range of the throttle potentiometer is smaller than the forward range.
+- The reverse range is now multiplied by 4, to solve this problem
+
 
 ## Usage
 
