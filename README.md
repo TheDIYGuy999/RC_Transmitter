@@ -50,6 +50,13 @@ New in V 1.8:
 - In most car style transmitters, the reverse range of the throttle potentiometer is smaller than the forward range.
 - The reverse range is now multiplied by 4, to solve this problem
 
+New in V 1.9:
+- The "RC_Tester" functionality (https://github.com/TheDIYGuy999/RC_Tester) is now intergrated
+- Useful, if you have more than one transmitter. Allows to visualize all 5 analog channels of your transmitter. The radio connection can be easily tested this way.
+- Press "Select" during power on. The splash screen shows "Micro RC Tester" instead of "Micro RC Transmitter" and then a graphical screen, which visualizes all analog channels
+- Works fo all 10 vehicle addresses
+
+
 
 ## Usage
 

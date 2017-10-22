@@ -30,7 +30,7 @@ boolean infrared = true;
 const float boardVersion = 1.1; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 // Joystick range (usually 1023)
-// Some transmitters have a smaller mechanical working range. If so, define it here(from 600 to 1023)
+// Some transmitters have a smaller mechanical working range. If so, define it here (from 600 to 1023)
 int range = 1023;
 
 #endif

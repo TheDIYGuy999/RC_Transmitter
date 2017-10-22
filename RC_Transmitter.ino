@@ -6,9 +6,10 @@
 // -Channel reversing
 // -Channel travel limitation in steps of 5%
 // -Value changes are stored in EEPROM, individually per vehicle
+// Radio transmitter tester included (press "Select" button during power up)
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 
-const float codeVersion = 1.8; // Software revision
+const float codeVersion = 1.9; // Software revision
 
 //
 // =======================================================================================================
@@ -47,6 +48,9 @@ const float codeVersion = 1.8; // Software revision
 
 // Is the radio or IR transmission mode active?
 byte transmissionMode = 1; // Radio mode is active by default
+
+// Is the transmitter or tester mode active?
+boolean testerMode = false; // Start in transmitter mode
 
 // Vehicle address
 int vehicleNumber = 1; // Vehicle number one is active by default
@@ -227,7 +231,6 @@ void setupRadio() {
   radio.printDetails();
   delay(1800);
 #endif
-  radio.openWritingPipe(pipeOut[vehicleNumber - 1]); // Vehicle Number 1 = Array number 0, so -1!
 
   // All axes to neutral position
   data.axis1 = 50;
@@ -235,7 +238,17 @@ void setupRadio() {
   data.axis3 = 50;
   data.axis4 = 50;
 
-  radio.write(&data, sizeof(RcData));
+  // Transmitter
+  if (!testerMode) {
+    radio.openWritingPipe(pipeOut[vehicleNumber - 1]); // Vehicle Number 1 = Array number 0, so -1!
+    radio.write(&data, sizeof(RcData));
+  }
+
+  // Receiver (radio tester mode)
+  else {
+    radio.openReadingPipe(1, pipeOut[vehicleNumber - 1]);
+    radio.startListening();
+  }
 }
 
 //
@@ -292,6 +305,11 @@ void setup() {
     EEPROM.updateBlock(addressReverse, joystickReversed); // then write defaults to EEPROM
     EEPROM.updateBlock(addressNegative, joystickPercentNegative);
     EEPROM.updateBlock(addressPositive, joystickPercentPositive);
+  }
+
+  // Switch to radio tester mode, if "Select" button is pressed
+  if (digitalRead(BUTTON_BACK) && !digitalRead(BUTTON_SEL)) {
+    testerMode = true;
   }
 
   // Joystick setup
@@ -468,10 +486,10 @@ byte mapJoystick(byte input, byte arrayNo) {
   reading[arrayNo] = constrain(reading[arrayNo], (1023 - range), range); // then limit the result before we do more calculations below
 
 #ifdef CONFIG_2_CH // In most "car style" transmitters, less than a half of the throttle potentiometer range is used for the reverse. So we have to enhance this range!
-    if (reading[2] < (range / 2) ) {
-      reading[2] = constrain(reading[2], (range / 3), (range / 2)); // limit reverse range, which will be multiplied later
-      reading[2] = map(reading[2], (range / 3), (range / 2), 0, (range / 2)); // reverse range multiplied by 4
-    }
+  if (reading[2] < (range / 2) ) {
+    reading[2] = constrain(reading[2], (range / 3), (range / 2)); // limit reverse range, which will be multiplied later
+    reading[2] = map(reading[2], (range / 3), (range / 2), 0, (range / 2)); // reverse range multiplied by 4
+  }
 #endif
 
   if (transmissionMode == 1) { // Radio mode
@@ -754,6 +772,58 @@ void transmitRadio() {
 
 //
 // =======================================================================================================
+// READ RADIO DATA (for radio tester)
+// =======================================================================================================
+//
+
+void readRadio() {
+
+  static unsigned long lastRecvTime = 0;
+  byte pipeNo;
+
+  if (radio.available(&pipeNo)) {
+    radio.writeAckPayload(pipeNo, &payload, sizeof(struct ackPayload) );  // prepare the ACK payload
+    radio.read(&data, sizeof(struct RcData)); // read the radia data and send out the ACK payload
+    lastRecvTime = millis();
+#ifdef DEBUG
+    Serial.print(data.axis1);
+    Serial.print("\t");
+    Serial.print(data.axis2);
+    Serial.print("\t");
+    Serial.print(data.axis3);
+    Serial.print("\t");
+    Serial.print(data.axis4);
+    Serial.println("\t");
+#endif
+  }
+
+  // Switch channel
+  if (millis() - lastRecvTime > 500) {
+    chPointer ++;
+    if (chPointer >= sizeof((*NRFchannel) / sizeof(byte))) chPointer = 0;
+    radio.setChannel(NRFchannel[chPointer]);
+    payload.channel = NRFchannel[chPointer];
+  }
+
+  if (millis() - lastRecvTime > 1000) { // set all analog values to their middle position, if no RC signal is received during 1s!
+    data.axis1 = 50; // Aileron (Steering for car)
+    data.axis2 = 50; // Elevator
+    data.axis3 = 50; // Throttle
+    data.axis4 = 50; // Rudder
+    payload.batteryOk = true; // Clear low battery alert (allows to re-enable the vehicle, if you switch off the transmitter)
+#ifdef DEBUG
+    Serial.println("No Radio Available - Check Transmitter!");
+#endif
+  }
+
+  if (millis() - lastRecvTime > 2000) {
+    setupRadio(); // re-initialize radio
+    lastRecvTime = millis();
+  }
+}
+
+//
+// =======================================================================================================
 // LED
 // =======================================================================================================
 //
@@ -785,9 +855,9 @@ void checkBattery() {
     lastTrigger = millis();
 
 #if F_CPU == 16000000 // 16MHz / 5V
-    txBatt = (analogRead(BATTERY_DETECT_PIN) / 68.2) + diodeDrop; // 1023steps / 15V = 68.2 + 0.7 diode drop!
+    txBatt = (analogRead(BATTERY_DETECT_PIN) / 68.2) + diodeDrop; // 1023steps / 15V = 68.2 + diode drop!
 #else // 8MHz / 3.3V
-    txBatt = (analogRead(BATTERY_DETECT_PIN) / 103.33) + diodeDrop; // 1023steps / 9.9V = 103.33 + 0.7 diode drop!
+    txBatt = (analogRead(BATTERY_DETECT_PIN) / 103.33) + diodeDrop; // 1023steps / 9.9V = 103.33 + diode drop!
 #endif
 
     txVcc = readVcc() / 1000.0 ;
@@ -821,7 +891,8 @@ void drawDisplay() {
     switch (activeScreen) {
       case 0: // Screen # 0 splash screen-----------------------------------
 
-        u8g.drawStr(3, 10, "Micro RC Transmitter");
+        if (testerMode) u8g.drawStr(3, 10, "Micro RC Tester");
+        else u8g.drawStr(3, 10, "Micro RC Transmitter");
 
         // Dividing Line
         u8g.drawLine(0, 13, 128, 13);
@@ -864,71 +935,93 @@ void drawDisplay() {
 
       case 1: // Screen # 1 main screen-------------------------------------
 
-        // screen dividing lines ----
-        u8g.drawLine(0, 13, 128, 13);
-        u8g.drawLine(64, 0, 64, 64);
+        // Tester mode ==================
+        if (testerMode) {
+          // screen dividing lines ----
+          u8g.drawLine(0, 12, 128, 12);
 
-        // Tx: data ----
-        u8g.setPrintPos(0, 10);
-        if (transmissionMode > 1) {
-          u8g.print("Tx: IR   ");
-          if (transmissionMode < 3) u8g.print(pfChannel + 1);
-
-          u8g.setPrintPos(68, 10);
-          if (transmissionMode == 2) u8g.print("LEGO");
-          if (transmissionMode == 3) u8g.print("MECCANO");
-        }
-        else {
-          u8g.print("Tx: 2.4G");
-          u8g.setPrintPos(52, 10);
+          // Tx: data ----
+          u8g.setPrintPos(0, 10);
+          u8g.print("CH: ");
           u8g.print(vehicleNumber);
+          u8g.setPrintPos(50, 10);
+          u8g.print("Bat: ");
+          u8g.print(txBatt);
+          u8g.print("V");
+
+          drawTarget(0, 14, 50, 50, data.axis4, data.axis3); // left joystick
+          drawTarget(74, 14, 50, 50, data.axis1, data.axis2); // right joystick
+          drawTarget(55, 14, 14, 50, 14, data.pot1); // potentiometer
         }
 
-        u8g.setPrintPos(3, 25);
-        u8g.print("Vcc: ");
-        u8g.print(txVcc);
+        // Transmitter mode ================
+        else {
+          // screen dividing lines ----
+          u8g.drawLine(0, 13, 128, 13);
+          u8g.drawLine(64, 0, 64, 64);
 
-        u8g.setPrintPos(3, 35);
-        u8g.print("Bat: ");
-        u8g.print(txBatt);
+          // Tx: data ----
+          u8g.setPrintPos(0, 10);
+          if (transmissionMode > 1) {
+            u8g.print("Tx: IR   ");
+            if (transmissionMode < 3) u8g.print(pfChannel + 1);
 
-        // Rx: data. Only display the following content, if in radio mode ----
-        if (transmissionMode == 1) {
-          u8g.setPrintPos(68, 10);
-          if (transmissionState) {
-            u8g.print("Rx: OK");
+            u8g.setPrintPos(68, 10);
+            if (transmissionMode == 2) u8g.print("LEGO");
+            if (transmissionMode == 3) u8g.print("MECCANO");
           }
           else {
-            u8g.print("Rx: ??");
+            u8g.print("Tx: 2.4G");
+            u8g.setPrintPos(52, 10);
+            u8g.print(vehicleNumber);
           }
 
-          u8g.setPrintPos(3, 45);
-          u8g.print("Mode 1: ");
-          u8g.print(data.mode1);
+          u8g.setPrintPos(3, 25);
+          u8g.print("Vcc: ");
+          u8g.print(txVcc);
 
-          u8g.setPrintPos(3, 55);
-          u8g.print("Mode 2: ");
-          u8g.print(data.mode2);
+          u8g.setPrintPos(3, 35);
+          u8g.print("Bat: ");
+          u8g.print(txBatt);
 
-          if (transmissionState) {
-            u8g.setPrintPos(68, 25);
-            u8g.print("Vcc: ");
-            u8g.print(payload.vcc);
-
-            u8g.setPrintPos(68, 35);
-            u8g.print("Bat: ");
-            u8g.print(payload.batteryVoltage);
-
-            u8g.setPrintPos(68, 45);
-            if (payload.batteryOk) {
-              u8g.print("Bat. OK ");
+          // Rx: data. Only display the following content, if in radio mode ----
+          if (transmissionMode == 1) {
+            u8g.setPrintPos(68, 10);
+            if (transmissionState) {
+              u8g.print("Rx: OK");
             }
             else {
-              u8g.print("Low Bat. ");
+              u8g.print("Rx: ??");
             }
-            u8g.setPrintPos(68, 55);
-            u8g.print("CH: ");
-            u8g.print(payload.channel);
+
+            u8g.setPrintPos(3, 45);
+            u8g.print("Mode 1: ");
+            u8g.print(data.mode1);
+
+            u8g.setPrintPos(3, 55);
+            u8g.print("Mode 2: ");
+            u8g.print(data.mode2);
+
+            if (transmissionState) {
+              u8g.setPrintPos(68, 25);
+              u8g.print("Vcc: ");
+              u8g.print(payload.vcc);
+
+              u8g.setPrintPos(68, 35);
+              u8g.print("Bat: ");
+              u8g.print(payload.batteryVoltage);
+
+              u8g.setPrintPos(68, 45);
+              if (payload.batteryOk) {
+                u8g.print("Bat. OK ");
+              }
+              else {
+                u8g.print("Low Bat. ");
+              }
+              u8g.setPrintPos(68, 55);
+              u8g.print("CH: ");
+              u8g.print(payload.channel);
+            }
           }
         }
 
@@ -1021,6 +1114,12 @@ void drawDisplay() {
   } while ( u8g.nextPage() ); // show display queue
 }
 
+// Draw target subfunction for radio tester mode ----
+void drawTarget(int x, int y, int w, int h, int posX, int posY) {
+  u8g.drawFrame(x, y, w, h);
+  u8g.drawDisc((x + w / 2) - (w / 2) + (posX / 2), (y + h / 2) + (h / 2) - (posY / 2), 5, 5);
+}
+
 //
 // =======================================================================================================
 // MAIN LOOP
@@ -1029,19 +1128,32 @@ void drawDisplay() {
 
 void loop() {
 
-  // Read joysticks
-  readJoysticks();
+  // Don't read analog inputs in radio tester mode
+  if (!testerMode) {
+    // Read joysticks
+    readJoysticks();
 
-  // Read potentimeter
-  readPotentiometer();
+    // Read potentimeter
+    readPotentiometer();
+  }
 
   // Read Buttons
   readButtons();
 
   // Transmit data via infrared or 2.4GHz radio
-  transmitRadio(); // 2.4 GHz radio
-  if (transmissionMode == 2) transmitLegoIr(); // LEGO Infrared
-  if (transmissionMode == 3) transmitMeccanoIr(); // MECCANO Infrared
+  if (testerMode) readRadio(); // 2.4 GHz radio tester
+  else {
+    transmitRadio(); // 2.4 GHz radio
+    if (transmissionMode == 2) transmitLegoIr(); // LEGO Infrared
+    if (transmissionMode == 3) transmitMeccanoIr(); // MECCANO Infrared
+  }
+
+  // Refresh display every 200 ms in tester mode (otherwise only, if value has changed)
+  static unsigned long lastDisplay;
+  if (testerMode && millis() - lastDisplay >= 200) {
+    lastDisplay = millis();
+    drawDisplay();
+  }
 
   // LED
   led();
