@@ -61,6 +61,6 @@ New in V 1.9:
 ## Usage
 
 See pictures
-![](https://github.com/TheDIYGuy999/Micro_RC_Receiver/blob/master/1.jpg)
+![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/1.jpg)
 
 (c) 2016 TheDIYGuy999
