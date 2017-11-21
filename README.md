@@ -56,6 +56,10 @@ New in V 1.9:
 - Press "Select" during power on. The splash screen shows "Micro RC Tester" instead of "Micro RC Transmitter" and then a graphical screen, which visualizes all analog channels
 - Works fo all 10 vehicle addresses
 
+New in V 2.0:
+- You have crashed your RC car? Then just play a little ATARI PONG session on your transmitter!
+- Press "Select" during power on. The transittter is then activating the game mode :-)
+- Press the "Back" button to restart the game after "Game Over" is displayed
 
 
 ## Usage

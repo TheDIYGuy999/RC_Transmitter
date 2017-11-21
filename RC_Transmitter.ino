@@ -8,8 +8,9 @@
 // -Value changes are stored in EEPROM, individually per vehicle
 // Radio transmitter tester included (press "Select" button during power up)
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
+// ATARI PONG game :-) Press the "Back" button during power on to start it
 
-const float codeVersion = 1.9; // Software revision
+const float codeVersion = 2.0; // Software revision
 
 //
 // =======================================================================================================
@@ -49,8 +50,8 @@ const float codeVersion = 1.9; // Software revision
 // Is the radio or IR transmission mode active?
 byte transmissionMode = 1; // Radio mode is active by default
 
-// Is the transmitter or tester mode active?
-boolean testerMode = false; // Start in transmitter mode
+// Select operation trannsmitter operation mode
+byte operationMode = 0; // Start in transmitter mode (0 = transmitter mode, 1 = tester mode, 2 = game mode)
 
 // Vehicle address
 int vehicleNumber = 1; // Vehicle number one is active by default
@@ -204,6 +205,9 @@ int addressReverse = EEPROM.getAddress(sizeof(byte) * 44);
 int addressNegative = EEPROM.getAddress(sizeof(byte) * 44);
 int addressPositive = EEPROM.getAddress(sizeof(byte) * 44);
 
+// A little easter egg ;-)
+#include "pong.h" // A little pong game :-)
+
 //
 // =======================================================================================================
 // RADIO SETUP
@@ -239,13 +243,13 @@ void setupRadio() {
   data.axis4 = 50;
 
   // Transmitter
-  if (!testerMode) {
+  if (operationMode == 0) {
     radio.openWritingPipe(pipeOut[vehicleNumber - 1]); // Vehicle Number 1 = Array number 0, so -1!
     radio.write(&data, sizeof(RcData));
   }
 
   // Receiver (radio tester mode)
-  else {
+  if (operationMode == 1) {
     radio.openReadingPipe(1, pipeOut[vehicleNumber - 1]);
     radio.startListening();
   }
@@ -309,7 +313,12 @@ void setup() {
 
   // Switch to radio tester mode, if "Select" button is pressed
   if (digitalRead(BUTTON_BACK) && !digitalRead(BUTTON_SEL)) {
-    testerMode = true;
+    operationMode = 1;
+  }
+
+  // Switch to game mode, if "Back" button is pressed
+  if (!digitalRead(BUTTON_BACK) && digitalRead(BUTTON_SEL)) {
+    operationMode = 2;
   }
 
   // Joystick setup
@@ -339,7 +348,6 @@ void setup() {
 #endif
   activeScreen = 1; // switch to the main screen
   delay(1500);
-  drawDisplay();
 }
 
 //
@@ -492,7 +500,7 @@ byte mapJoystick(byte input, byte arrayNo) {
   }
 #endif
 
-  if (transmissionMode == 1) { // Radio mode
+  if (transmissionMode == 1 && !operationMode == 2 ) { // Radio mode and not game mode
     if (joystickReversed[vehicleNumber][arrayNo]) { // reversed
       return map(reading[arrayNo], (1023 - range), range, (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50), (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2));
     }
@@ -891,8 +899,9 @@ void drawDisplay() {
     switch (activeScreen) {
       case 0: // Screen # 0 splash screen-----------------------------------
 
-        if (testerMode) u8g.drawStr(3, 10, "Micro RC Tester");
-        else u8g.drawStr(3, 10, "Micro RC Transmitter");
+        if (operationMode == 0) u8g.drawStr(3, 10, "Micro RC Transmitter");
+        if (operationMode == 1) u8g.drawStr(3, 10, "Micro RC Tester");
+        if (operationMode == 2) u8g.drawStr(3, 10, "Micro PONG");
 
         // Dividing Line
         u8g.drawLine(0, 13, 128, 13);
@@ -936,7 +945,7 @@ void drawDisplay() {
       case 1: // Screen # 1 main screen-------------------------------------
 
         // Tester mode ==================
-        if (testerMode) {
+        if (operationMode == 1) {
           // screen dividing lines ----
           u8g.drawLine(0, 12, 128, 12);
 
@@ -955,7 +964,7 @@ void drawDisplay() {
         }
 
         // Transmitter mode ================
-        else {
+        if (operationMode == 0) {
           // screen dividing lines ----
           u8g.drawLine(0, 13, 128, 13);
           u8g.drawLine(64, 0, 64, 64);
@@ -1024,6 +1033,9 @@ void drawDisplay() {
             }
           }
         }
+
+        // Game mode ================
+        // called directly inside the loop() function to increase speed!
 
         break;
 
@@ -1128,21 +1140,19 @@ void drawTarget(int x, int y, int w, int h, int posX, int posY) {
 
 void loop() {
 
-  // Don't read analog inputs in radio tester mode
-  if (!testerMode) {
+  // only read analog inputs in transmitter (0) or game mode (2)
+  if (operationMode == 0 || operationMode == 2) {
+    
     // Read joysticks
     readJoysticks();
-
-    // Read potentimeter
+    
+    // Read Potentiometer
     readPotentiometer();
   }
 
-  // Read Buttons
-  readButtons();
-
   // Transmit data via infrared or 2.4GHz radio
-  if (testerMode) readRadio(); // 2.4 GHz radio tester
-  else {
+  if (operationMode == 1) readRadio(); // 2.4 GHz radio tester
+  if (operationMode == 0) {
     transmitRadio(); // 2.4 GHz radio
     if (transmissionMode == 2) transmitLegoIr(); // LEGO Infrared
     if (transmissionMode == 3) transmitMeccanoIr(); // MECCANO Infrared
@@ -1150,14 +1160,18 @@ void loop() {
 
   // Refresh display every 200 ms in tester mode (otherwise only, if value has changed)
   static unsigned long lastDisplay;
-  if (testerMode && millis() - lastDisplay >= 200) {
+  if (operationMode == 1 && millis() - lastDisplay >= 200) {
     lastDisplay = millis();
     drawDisplay();
   }
 
-  // LED
-  led();
+  // Atari Pong game :-)
+  if (operationMode == 2) pong();
 
-  // Battery check
-  checkBattery();
+  // If not in game mode:
+  else {
+    led(); // LED control
+    checkBattery(); // Check battery
+    readButtons();
+  }
 }

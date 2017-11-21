@@ -3,7 +3,7 @@
 
 #include "Arduino.h"
 
-#define CONFIG_2_CH // <- Select the correct transmitter configuration here before uploading!
+#define CONFIG_MICRO_RC // <- Select the correct transmitter configuration here before uploading!
 
 //
 // =======================================================================================================
