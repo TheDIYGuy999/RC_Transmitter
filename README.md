@@ -58,8 +58,8 @@ New in V 1.9:
 
 New in V 2.0:
 - You have crashed your RC car? Then just play a little ATARI PONG session on your transmitter!
-- Press "Select" during power on. The transittter is then activating the game mode :-)
-- Press the "Back" button to restart the game after "Game Over" is displayed
+- Press "Back" during power on. The transittter is then activating the game mode :-)
+- Press the "Back" button again to restart the game after "Game Over" is displayed
 
 
 ## Usage
