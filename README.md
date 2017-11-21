@@ -13,6 +13,7 @@
 - NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 - very compact
 - Eagle PCB included
+- PONG Game included
 
 New in V 1.3:
 - Infrared codes for "MECCANO" IR controlled motors. Separate library required: https://github.com/TheDIYGuy999/MeccanoIr
@@ -57,7 +58,7 @@ New in V 1.9:
 - Works fo all 10 vehicle addresses
 
 New in V 2.0:
-- You have crashed your RC car? Then just play a little ATARI PONG session on your transmitter!
+- You have crashed your RC car? Then just play a little PONG session on your transmitter!
 - Press "Back" during power on. The transittter is then activating the game mode :-)
 - Press the "Back" button again to restart the game after "Game Over" is displayed
 
