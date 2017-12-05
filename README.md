@@ -68,4 +68,6 @@ New in V 2.0:
 See pictures
 ![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/1.jpg)
 
+![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/Micro_RC_Transmitter.jpg)
+
 (c) 2016 TheDIYGuy999
