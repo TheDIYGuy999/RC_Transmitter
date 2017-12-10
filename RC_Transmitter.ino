@@ -10,7 +10,7 @@
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 // ATARI PONG game :-) Press the "Back" button during power on to start it
 
-const float codeVersion = 2.0; // Software revision
+const float codeVersion = 2.01; // Software revision
 
 //
 // =======================================================================================================
@@ -192,8 +192,9 @@ byte backButtonState = 7;
 statusLED greenLED(false); // green: ON = ransmitter ON, flashing = Communication with vehicle OK
 statusLED redLED(false); // red: ON = battery empty
 
-// OLED display
-U8GLIB_SH1106_128X64 u8g(U8G_I2C_OPT_FAST);  // I2C / TWI  FAST instead of NONE = 400kHz I2C!
+// OLED display. Select the one you have! Otherwise sthe sreen could be slightly offset sideways!
+//U8GLIB_SH1106_128X64 u8g(U8G_I2C_OPT_FAST);  // I2C / TWI  FAST instead of NONE = 400kHz I2C!
+U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_FAST);  // I2C / TWI  FAST instead of NONE = 400kHz I2C!
 int activeScreen = 0; // the currently displayed screen number (0 = splash screen)
 boolean displayLocked = true;
 byte menuRow = 0; // Menu active cursor line
@@ -500,7 +501,7 @@ byte mapJoystick(byte input, byte arrayNo) {
   }
 #endif
 
-  if (transmissionMode == 1 && !operationMode == 2 ) { // Radio mode and not game mode
+  if (transmissionMode == 1 && operationMode != 2 ) { // Radio mode and not game mode
     if (joystickReversed[vehicleNumber][arrayNo]) { // reversed
       return map(reading[arrayNo], (1023 - range), range, (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50), (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2));
     }
@@ -714,9 +715,6 @@ void transmitRadio() {
     if (chPointer >= sizeof((*NRFchannel) / sizeof(byte))) chPointer = 0;
     radio.setChannel(NRFchannel[chPointer]);
 
-
-
-
     // if the transmission was not confirmed (from the receiver) after > 1s...
     if (millis() - previousSuccessfulTransmission > 1000) {
       greenLED.on();
@@ -760,7 +758,6 @@ void transmitRadio() {
       }
     }
 
-
 #ifdef DEBUG
     Serial.print(data.axis1);
     Serial.print("\t");
@@ -788,6 +785,10 @@ void readRadio() {
 
   static unsigned long lastRecvTime = 0;
   byte pipeNo;
+
+  payload.batteryVoltage = txBatt; // store the battery voltage for sending
+  payload.vcc = txVcc; // store the vcc voltage for sending
+  payload.batteryOk = batteryOkTx; // store the battery state for sending
 
   if (radio.available(&pipeNo)) {
     radio.writeAckPayload(pipeNo, &payload, sizeof(struct ackPayload) );  // prepare the ACK payload

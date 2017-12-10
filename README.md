@@ -62,6 +62,11 @@ New in V 2.0:
 - Press "Back" during power on. The transittter is then activating the game mode :-)
 - Press the "Back" button again to restart the game after "Game Over" is displayed
 
+New in V 2.01:
+- A serious bug in the mapJoystick() function was found during tests with the upcomming STM32 version
+- The inverse and scale functionality did not work anymore since V2.0
+- The bug is now solved and you can use the adjustments menu again
+
 
 ## Usage
 
