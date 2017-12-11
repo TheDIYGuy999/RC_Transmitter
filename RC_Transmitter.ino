@@ -1,10 +1,12 @@
 // Micro RC Project. A tiny little 2.4GHz and LEGO "Power Functions" / "MECCANO" IR RC transmitter!
-// 3.3V, 8MHz Pro Mini, 2.4GHz NRF24L01 radio module
+// 3.3V, 8MHz Pro Mini
+// STM32F103C8T6 ARM version see: https://github.com/TheDIYGuy999/RC_Transmitter_STM32
+// 2.4GHz NRF24L01 radio module
 // SSD 1306 128 x 63 0.96" OLED
 // Custom PCB from OSH Park
 // Menu for the following adjustments:
 // -Channel reversing
-// -Channel travel limitation in steps of 5%
+// -Channel travel limitation adjustable in steps of 5%
 // -Value changes are stored in EEPROM, individually per vehicle
 // Radio transmitter tester included (press "Select" button during power up)
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
