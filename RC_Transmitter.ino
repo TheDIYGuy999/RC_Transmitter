@@ -38,10 +38,7 @@ const float codeVersion = 2.01; // Software revision
 #include <statusLED.h> // https://github.com/TheDIYGuy999/statusLED
 #include <U8glib.h> // https://github.com/olikraus/u8glib
 
-// Tabs (header files in sketch directory)
-#include "readVCC.h"
-#include "transmitterConfig.h"
-#include "MeccanoIr.h" // https://github.com/TheDIYGuy999/MeccanoIr
+// Tabs (.h files in the sketch directory) see further down
 
 //
 // =======================================================================================================
@@ -208,7 +205,16 @@ int addressReverse = EEPROM.getAddress(sizeof(byte) * 44);
 int addressNegative = EEPROM.getAddress(sizeof(byte) * 44);
 int addressPositive = EEPROM.getAddress(sizeof(byte) * 44);
 
-// A little easter egg ;-)
+//
+// =======================================================================================================
+// INCLUDE TABS (header files in sketch directory)
+// =======================================================================================================
+//
+
+// Tabs (header files in sketch directory)
+#include "readVCC.h"
+#include "transmitterConfig.h"
+#include "MeccanoIr.h" // https://github.com/TheDIYGuy999/MeccanoIr
 #include "pong.h" // A little pong game :-)
 
 //

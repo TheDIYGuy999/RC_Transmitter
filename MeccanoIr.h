@@ -1,7 +1,8 @@
 /*
   MeccanoIr.h - Not a "real" library for MECCANO / ERECTOR IR devices - just put it in the same folder as your sketch.
-  Created by TheDIYGuy999, Oct 2016
+  Created by TheDIYGuy999, Oct 2016, December 2017
   Released into the public domain.
+  V1.2, including STM32 ARM support
 */
 
 #ifndef MeccanoIr_h
@@ -289,14 +290,25 @@ void buildIrSignal(byte channel) {
     long microsecs = IrSignal[i] * 10;
     while (microsecs > 0) {
 
-      digitalWrite(3, HIGH);
+#if defined (__STM32F1__) // STM32 ARM board ----
+      digitalWrite(PB5, HIGH); //Pin PB5 is hardcoded!
+      delayMicroseconds(12);
+      digitalWrite(PB5, LOW); //Pin PB5 is hardcoded!
+      delayMicroseconds(12);
+// STM32 ARM board end ----
+
+#else // AVR board ----
+      digitalWrite(3, HIGH); //Pin 3 is hardcoded!
 #if F_CPU == 16000000 // 16MHz CPU
-      delayMicroseconds(10);
+      delayMicroseconds(10); // We don't want the delay on an 8MHz board!
 #endif
-      digitalWrite(3, LOW);
+      digitalWrite(3, LOW); //Pin 3 is hardcoded!
 #if F_CPU == 16000000 // 16MHz CPU
-      delayMicroseconds(10);
+      delayMicroseconds(10); // We don't want the delay on an 8MHz board!
 #endif
+
+#endif // AVR board end ----
+
       microsecs -= 26; // 38 kHz is about 13 microseconds high and 13 microseconds low
     }
 
