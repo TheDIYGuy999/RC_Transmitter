@@ -513,7 +513,7 @@ byte mapJoystick(byte input, byte arrayNo) {
   reading[arrayNo] = analogRead(input) + offset[arrayNo]; // read joysticks and add the offset
   reading[arrayNo] = constrain(reading[arrayNo], (1023 - range), range); // then limit the result before we do more calculations below
 
-#ifdef CONFIG_2_CH // In most "car style" transmitters, less than a half of the throttle potentiometer range is used for the reverse. So we have to enhance this range!
+#ifndef CONFIG_4_CH // In most "car style" transmitters, less than a half of the throttle potentiometer range is used for the reverse. So we have to enhance this range!
   if (reading[2] < (range / 2) ) {
     reading[2] = constrain(reading[2], (range / 3), (range / 2)); // limit reverse range, which will be multiplied later
     reading[2] = map(reading[2], (range / 3), (range / 2), 0, (range / 2)); // reverse range multiplied by 4
