@@ -12,7 +12,7 @@
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 // ATARI PONG game :-) Press the "Back" button during power on to start it
 
-const float codeVersion = 2.01; // Software revision
+const float codeVersion = 2.1; // Software revision
 
 //
 // =======================================================================================================
@@ -36,7 +36,7 @@ const float codeVersion = 2.01; // Software revision
 #include <EEPROMex.h> // https://github.com/thijse/Arduino-EEPROMEx
 #include <LegoIr.h> // https://github.com/TheDIYGuy999/LegoIr
 #include <statusLED.h> // https://github.com/TheDIYGuy999/statusLED
-#include <U8glib.h> // https://github.com/olikraus/u8glib
+#include <U8glib.h> // https://github.com/olikraus/u8glib or https://bintray.com/olikraus/u8glib/Arduino
 
 // Tabs (.h files in the sketch directory) see further down
 

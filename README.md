@@ -71,6 +71,10 @@ New in V 2.01:
 - The inverse and scale functionality did not work anymore since V2.0
 - The bug is now solved and you can use the adjustments menu again
 
+New in V 2.1:
+- 3CH configuration for "car style" transmitter with additional 3 position switch added
+- Used for 3 speed gearbox operation, using a single pole, double throw switch, connected to pin A0. Two resistors from A0 to GND and VCC allow 3 servo positions
+
 
 ## Usage
 
@@ -79,4 +83,4 @@ See pictures
 
 ![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/Micro_RC_Transmitter.jpg)
 
-(c) 2016 TheDIYGuy999
+(c) 2016-2019 TheDIYGuy999

@@ -3,7 +3,7 @@
 
 #include "Arduino.h"
 
-#define CONFIG_MICRO_RC // <- Select the correct transmitter configuration here before uploading!
+#define CONFIG_3_CH // <- Select the correct transmitter configuration here before uploading!
 
 //
 // =======================================================================================================
@@ -27,7 +27,7 @@ const float diodeDrop = 0.72;
 boolean infrared = true;
 
 // Board type
-const float boardVersion = 1.1; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
+const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
 // Joystick range (usually 1023)
 // Some transmitters have a smaller mechanical working range. If so, define it here (from 600 to 1023)
@@ -43,6 +43,29 @@ const float diodeDrop = 0.3;
 
 // Channels, we have
 #define CH1
+#define CH3
+
+// Infrared
+boolean infrared = false;
+
+// Board type
+const float boardVersion = 1.1; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
+
+// Joystick range (usually 1023)
+// Some transmitters have a smaller mechanical working range. If so, define it here (from 600 to 1023)
+int range = 820;
+
+#endif
+
+// Configuration for a 2+1 channel transmitter with steering wheel. No IR support----------------------
+#ifdef CONFIG_3_CH
+// Battery type
+const float cutoffVoltage = 4.4; // 4 x Eneloop cell
+const float diodeDrop = 0.3;
+
+// Channels, we have
+#define CH1
+#define CH2 // switch with one resistor to gnd and one to vcc (for 3 speed gearbox) 
 #define CH3
 
 // Infrared
