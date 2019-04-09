@@ -68,6 +68,9 @@ const float diodeDrop = 0.3;
 #define CH2 // switch with one resistor to gnd and one to vcc (for 3 speed gearbox) 
 #define CH3
 
+// 3 position switches, we have (= no auto calibtation for these channels during startup)
+#define CH2Switch
+
 // Infrared
 boolean infrared = false;
 

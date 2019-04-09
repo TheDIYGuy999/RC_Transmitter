@@ -9,32 +9,32 @@
 
 #include "Arduino.h"
 
-const int PADDLE_RATE = 17; // 17
-const int BALL_RATE = 8; // 8
-const int FRAME_RATE = 70; // Refresh display every 70ms = 14.2Hz (less slows the ball update down on an 8MHz MPU...)
-const int PADDLE_HEIGHT = 14; // 24
+const uint8_t PADDLE_RATE = 15; // 15
+const uint8_t BALL_RATE = 7; // 7
+const uint8_t FRAME_RATE = 70; // Refresh display every 70ms = 14.2Hz (less slows the ball update down on an 8MHz MPU...)
+const uint8_t PADDLE_HEIGHT = 14; // 14
 
-const int half_paddle = PADDLE_HEIGHT / 2;
+const uint8_t half_paddle = PADDLE_HEIGHT / 2;
 
-int ball_x = 64, ball_y = 32; // 64, 32
-int ball_dir_x = -1, ball_dir_y = 1; // 1, 1
+uint8_t ball_x = 64, ball_y = 32; // 64, 32
+uint8_t ball_dir_x = -1, ball_dir_y = 1; // 1, 1
 
-int new_x;
-int new_y;
+uint8_t new_x;
+uint8_t new_y;
 
 unsigned long ball_update;
 unsigned long paddle_update;
 
-const int CPU_X = 12;
-int cpu_y = 16;
+const uint8_t CPU_X = 12; // 12
+uint8_t cpu_y = 16;
 
-const int PLAYER_X = 115;
-int player_y = 16;
+const uint8_t PLAYER_X = 115; // 115
+uint8_t player_y = 16;
 
-int game_over_difference = 10; // The game is over after this point difference is reached!
+uint8_t game_over_difference = 10; // The game is over after this point difference is reached!
 
-int cpu_points = 0;
-int player_points = 0;
+uint8_t cpu_points = 0;
+uint8_t player_points = 0;
 
 boolean cpu_won = false;
 boolean player_won = false;
@@ -54,22 +54,21 @@ void displayUpdate() {
     // clear screen ----
     u8g.firstPage();
     do {
-      //u8g.drawPixel(new_x, new_y);
+      //u8g.drawFrame(0, 0, 128, 64); // only for screen offset test!
       u8g.drawCircle(new_x, new_y, 1); // Ball
       u8g.drawVLine(CPU_X, cpu_y, PADDLE_HEIGHT); // CPU paddle
       u8g.drawVLine(PLAYER_X, player_y, PADDLE_HEIGHT); // Player paddle
+
       u8g.drawVLine(64, 0, 3); // Vertical dashed line segments
-      u8g.drawVLine(64, 5, 3);
-      u8g.drawVLine(64, 10, 3);
-      u8g.drawVLine(64, 15, 3);
-      u8g.drawVLine(64, 20, 3);
-      u8g.drawVLine(64, 25, 3);
+      u8g.drawVLine(64, 6, 3);
+      u8g.drawVLine(64, 12, 3);
+      u8g.drawVLine(64, 18, 3);
+      u8g.drawVLine(64, 24, 3);
       u8g.drawVLine(64, 30, 3);
-      u8g.drawVLine(64, 35, 3);
-      u8g.drawVLine(64, 40, 3);
-      u8g.drawVLine(64, 45, 3);
-      u8g.drawVLine(64, 50, 3);
-      u8g.drawVLine(64, 55, 3);
+      u8g.drawVLine(64, 36, 3);
+      u8g.drawVLine(64, 42, 3);
+      u8g.drawVLine(64, 48, 3);
+      u8g.drawVLine(64, 54, 3);
       u8g.drawVLine(64, 60, 3);
 
       u8g.setPrintPos(40, 10);  // CPU points counter
@@ -88,7 +87,7 @@ void displayUpdate() {
         u8g.setPrintPos(36, 28);
         u8g.print("GAME OVER"); // Game over
         u8g.setPrintPos(31, 48);
-        u8g.print("Press BACK!"); // Bress button "Back" to restart
+        u8g.print("Press BACK!"); // Press button "Back" to restart
       }
       if (cpu_won ) {
         u8g.setPrintPos(38, 38);
@@ -140,13 +139,13 @@ void pong() {
     if (player_points - cpu_points >= game_over_difference) player_won = true; // Game over, you won
 
     // Check if we hit the vertical walls
-    if (new_x == 2 || new_x == 124) {
+    if (new_x == 1 || new_x == 126) {
       ball_dir_x = -ball_dir_x;
       new_x += ball_dir_x + ball_dir_x;
     }
 
     // Check if we hit the horizontal walls
-    if (new_y == 2 || new_y == 62) {
+    if (new_y == 1 || new_y == 62) {
       ball_dir_y = -ball_dir_y;
       new_y += ball_dir_y + ball_dir_y;
     }
@@ -189,7 +188,7 @@ void pong() {
     if (cpu_y + PADDLE_HEIGHT > 63) cpu_y = 63 - PADDLE_HEIGHT;
 
     // Player paddle control----
-#ifdef CH2 // If we have a channel 2 (4 channel joystick transmitter)
+#ifdef CH4 // If we have a channel 4 (= 4 channel joystick transmitter)
     player_y = map(data.axis2, 100, 0, 0, (63 - PADDLE_HEIGHT));
 #else // Else (2 channel car style transmitter)
     player_y = map(data.axis1, 100, 0, 0, (63 - PADDLE_HEIGHT));

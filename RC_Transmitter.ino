@@ -488,12 +488,23 @@ void readButtons() {
 
 int offset[4]; // the auto calibration offset of each joystick
 
-// Auto-zero subfunction (called during setup) ----
+// Auto-zero subfunction (called during setup, if no 3 position switch is connected) ----
 void JoystickOffset() {
+#ifndef CH1Switch
   offset[0] = 512 - analogRead(JOYSTICK_1);
+#endif
+
+#ifndef CH2Switch
   offset[1] = 512 - analogRead(JOYSTICK_2);
+#endif
+
+#ifndef CH3Switch
   offset[2] = 512 - analogRead(JOYSTICK_3);
+#endif
+
+#ifndef CH4Switch
   offset[3] = 512 - analogRead(JOYSTICK_4);
+#endif
 }
 
 // Mapping and reversing subfunction ----
@@ -1151,10 +1162,10 @@ void loop() {
 
   // only read analog inputs in transmitter (0) or game mode (2)
   if (operationMode == 0 || operationMode == 2) {
-    
+
     // Read joysticks
     readJoysticks();
-    
+
     // Read Potentiometer
     readPotentiometer();
   }
