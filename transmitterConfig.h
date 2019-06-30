@@ -3,7 +3,7 @@
 
 #include "Arduino.h"
 
-#define CONFIG_3_CH // <- Select the correct transmitter configuration here before uploading!
+#define CONFIG_WLTOYS // <- Select the correct transmitter configuration here before uploading!
 
 //
 // =======================================================================================================
@@ -29,9 +29,9 @@ boolean infrared = true;
 // Board type
 const float boardVersion = 1.0; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
-// Joystick range (usually 1023)
-// Some transmitters have a smaller mechanical working range. If so, define it here (from 600 to 1023)
-int range = 1023;
+// Joystick calibration
+int range = 1023; // 1023, if entire pot wiper range is used
+int reverseEndpoint = 0; // the point, where the throttle joystick hits its reverse end stop
 
 #endif
 
@@ -51,9 +51,9 @@ boolean infrared = false;
 // Board type
 const float boardVersion = 1.1; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
-// Joystick range (usually 1023)
-// Some transmitters have a smaller mechanical working range. If so, define it here (from 600 to 1023)
-int range = 820;
+// Joystick calibration
+int range = 820; // 1023, if entire pot wiper range is used
+int reverseEndpoint = 273; // the point, where the throttle joystick hits its reverse end stop
 
 #endif
 
@@ -77,9 +77,38 @@ boolean infrared = false;
 // Board type
 const float boardVersion = 1.1; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
 
-// Joystick range (usually 1023)
-// Some transmitters have a smaller mechanical working range. If so, define it here (from 600 to 1023)
-int range = 820;
+// Joystick calibration
+int range = 820; // 1023, if entire pot wiper range is used
+int reverseEndpoint = 273; // the point, where the throttle joystick hits its reverse end stop
+
+#endif
+
+// Configuration for a 2+1 channel transmitter with steering wheel. Baserd on a WLtoys transmitter. No IR support----------------------
+#ifdef CONFIG_WLTOYS
+// Battery type
+const float cutoffVoltage = 4.4; // 4 x Eneloop cell
+const float diodeDrop = 0.0; // No protection diode in this transmitter
+
+// General settings
+#define ledInversed // LED common is wired to VCC, so we have to inverse the logic!
+
+// Channels, we have
+#define CH1 // Steering
+#define CH2 // switch with one resistor to gnd and one to vcc (for 3 speed gearbox) 
+#define CH3 // Throttle
+
+// 3 position switches, we have (= no auto calibtation for these channels during startup)
+#define CH2Switch
+
+// Infrared
+boolean infrared = false;
+
+// Board type
+const float boardVersion = 1.1; // Board revision (MUST MATCH WITH YOUR BOARD REVISION!!)
+
+// Joystick calibration
+int range = 900; // 1023, if entire pot wiper range is used
+int reverseEndpoint = 170; // the point, where the throttle joystick hits its reverse end stop
 
 #endif
 

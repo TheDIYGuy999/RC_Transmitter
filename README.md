@@ -75,6 +75,12 @@ New in V 2.1:
 - 3CH configuration for "car style" transmitter with additional 3 position switch added
 - Used for 3 speed gearbox operation, using a single pole, double throw switch, connected to pin A0. Two resistors from A0 to GND and VCC allow 3 servo positions
 
+New in V 2.2:
+- 3CH configuration for WLtoys A959 etc. based 3+1CH transmitter (CONFIG_WLTOYS) See pictures below.
+- Support for 3 position double throw switches (for gearbox switching etc.) added. Use two identical resistors (ca. 20k) from GND to center pin to VCC across the switch. Define a "CH1Switch" etc. variable., if a switch instead a potentiometer is connected
+- New potentiometer calibration variable "reverseEndpoint" allows to adjust the throttle reverse range. Use the "Micro RC Tester" mode on a 2nd transmitter and then adjust the "range" variable as well, until the entire range of all channels is used on the graphical display.
+- New "ledInversed" variable allows to use the stock WLtoys LED, which has a red and a green LED in one housing. The common pin is connected to VCC
+
 
 ## Usage
 
@@ -82,5 +88,11 @@ See pictures
 ![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/1.jpg)
 
 ![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/Micro_RC_Transmitter.jpg)
+
+![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/Micro_RC_Transmitter_2.jpg)
+
+![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/Micro_RC_Transmitter_WLtoys_1.jpg)
+
+![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/Micro_RC_Transmitter_WLtoys_2.jpg)
 
 (c) 2016-2019 TheDIYGuy999

@@ -12,7 +12,7 @@
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 // ATARI PONG game :-) Press the "Back" button during power on to start it
 
-const float codeVersion = 2.1; // Software revision
+const float codeVersion = 2.2; // Software revision
 
 //
 // =======================================================================================================
@@ -38,7 +38,9 @@ const float codeVersion = 2.1; // Software revision
 #include <statusLED.h> // https://github.com/TheDIYGuy999/statusLED
 #include <U8glib.h> // https://github.com/olikraus/u8glib or https://bintray.com/olikraus/u8glib/Arduino
 
-// Tabs (.h files in the sketch directory) see further down
+// Tabs
+#include "transmitterConfig.h"
+// More tabs (.h files in the sketch directory) see further down
 
 //
 // =======================================================================================================
@@ -49,7 +51,7 @@ const float codeVersion = 2.1; // Software revision
 // Is the radio or IR transmission mode active?
 byte transmissionMode = 1; // Radio mode is active by default
 
-// Select operation trannsmitter operation mode
+// Select trannsmitter operation mode
 byte operationMode = 0; // Start in transmitter mode (0 = transmitter mode, 1 = tester mode, 2 = game mode)
 
 // Vehicle address
@@ -104,7 +106,7 @@ const int pfMaxAddress = 3;
 
 // TX voltages
 boolean batteryOkTx = false;
-#define BATTERY_DETECT_PIN A7 // The 20k & 10k battery detection voltage divider is connected to pin A3
+#define BATTERY_DETECT_PIN A7 // The 20k & 10k battery detection voltage divider is connected to pin A7
 float txVcc;
 float txBatt;
 
@@ -141,7 +143,7 @@ byte joystickPercentNegative[maxVehicleNumber + 1][4] = { // 1 + 10 Vehicle Addr
 };
 
 //Joystick percent positive
-byte joystickPercentPositive[maxVehicleNumber + 1][4] = { // 1 + 10 Vehicle Addresses, 4 Servos
+byte joystickPercentPositive[maxVehicleNumber + 1][4] = { // 1 + 10 Vehicle Addresses, 4 Channels
   {100, 100, 100, 100}, // Address 0 not used
 
   {100, 100, 100, 100}, // Address 1
@@ -187,9 +189,15 @@ byte backButtonState = 7;
   That would qualify as a debounced raising edge*/
 #define DRE(signal, state) (state=(state<<1)|(signal&1)&15)==7
 
-// Status LED objects (false = not inverted)
-statusLED greenLED(false); // green: ON = ransmitter ON, flashing = Communication with vehicle OK
+// Status LED objects (false = logic not inverted)
+#ifdef ledInversed // inversed logic
+statusLED greenLED(true); // green: ON = transmitter ON, flashing = Communication with vehicle OK
+statusLED redLED(true); // red: ON = battery empty
+#endif
+#ifndef ledInversed // not inversed logic
+statusLED greenLED(false); // green: ON = transmitter ON, flashing = Communication with vehicle OK
 statusLED redLED(false); // red: ON = battery empty
+#endif
 
 // OLED display. Select the one you have! Otherwise sthe sreen could be slightly offset sideways!
 //U8GLIB_SH1106_128X64 u8g(U8G_I2C_OPT_FAST);  // I2C / TWI  FAST instead of NONE = 400kHz I2C!
@@ -213,7 +221,7 @@ int addressPositive = EEPROM.getAddress(sizeof(byte) * 44);
 
 // Tabs (header files in sketch directory)
 #include "readVCC.h"
-#include "transmitterConfig.h"
+//#include "transmitterConfig.h"
 #include "MeccanoIr.h" // https://github.com/TheDIYGuy999/MeccanoIr
 #include "pong.h" // A little pong game :-)
 
@@ -230,8 +238,8 @@ void setupRadio() {
   radio.powerUp();
 
   // Set Power Amplifier (PA) level to one of four levels: RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
-  if (boardVersion < 1.1 ) radio.setPALevel(RF24_PA_MIN); // No independent NRF24L01 3.3 PSU, so only "MIN" transmission level allowed
-  else radio.setPALevel(RF24_PA_MAX); // Independent NRF24L01 3.3 PSU, so "FULL" transmission level allowed
+  if (boardVersion < 1.1 ) radio.setPALevel(RF24_PA_MIN); // No independent NRF24L01 3.3V PSU, so only "MIN" transmission level allowed
+  else radio.setPALevel(RF24_PA_MAX); // Independent NRF24L01 3.3V PSU, so "FULL" transmission level allowed
 
   radio.setDataRate(RF24_250KBPS);
   radio.setAutoAck(pipeOut[vehicleNumber - 1], true); // Ensure autoACK is enabled
@@ -371,7 +379,7 @@ void travelAdjust(boolean upDn) {
   if (upDn) inc = 5; // Direction +
   else inc = -5; // -
 
-  if ( (menuRow & 0x01) == 0) {// even (2nd column)
+  if ( (menuRow & 0x01) == 0) { // even (2nd column)
     joystickPercentPositive[vehicleNumber][(menuRow - 6) / 2 ] += inc; // row 6 - 12 = 0 - 3
   }
   else { // odd (1st column)
@@ -403,7 +411,7 @@ void readButtons() {
 
     if (activeScreen <= 10) { // if menu is not displayed ----------
 
-      // Left button: Channel selection
+      // Left button: Channel selection +
       if (DRE(digitalRead(BUTTON_LEFT), leftButtonState) && (transmissionMode < 3)) {
         vehicleNumber ++;
         if (vehicleNumber > maxVehicleNumber) vehicleNumber = 1;
@@ -423,10 +431,20 @@ void readButtons() {
           drawDisplay();
         }
       }
+      else { // only, if transmitter has no IR option
+        // Right button: Channel selection -
+        if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState) && (transmissionMode < 3)) {
+          vehicleNumber --;
+          if (vehicleNumber < 1) vehicleNumber = maxVehicleNumber;
+          setupRadio(); // Re-initialize the radio with the new pipe address
+          setupPowerfunctions(); // Re-initialize the LEGO IR transmitter with the new channel address
+          drawDisplay();
+        }
+      }
     }
     else { // if menu is displayed -----------
-      // Left button: Value -
-      if (DRE(digitalRead(BUTTON_LEFT), leftButtonState)) {
+      // Right button: Value -
+      if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState)) {
         if (activeScreen == 11) {
           joystickReversed[vehicleNumber][menuRow - 1] = false;
         }
@@ -436,8 +454,8 @@ void readButtons() {
         drawDisplay();
       }
 
-      // Right button: Value +
-      if (DRE(digitalRead(BUTTON_RIGHT), rightButtonState)) {
+      // Left button: Value +
+      if (DRE(digitalRead(BUTTON_LEFT), leftButtonState)) {
         if (activeScreen == 11) {
           joystickReversed[vehicleNumber][menuRow - 1] = true;
         }
@@ -488,7 +506,7 @@ void readButtons() {
 
 int offset[4]; // the auto calibration offset of each joystick
 
-// Auto-zero subfunction (called during setup, if no 3 position switch is connected) ----
+// Auto-zero subfunction (called during setup, if a pot and no 3 position switch is connected) ----
 void JoystickOffset() {
 #ifndef CH1Switch
   offset[0] = 512 - analogRead(JOYSTICK_1);
@@ -513,10 +531,10 @@ byte mapJoystick(byte input, byte arrayNo) {
   reading[arrayNo] = analogRead(input) + offset[arrayNo]; // read joysticks and add the offset
   reading[arrayNo] = constrain(reading[arrayNo], (1023 - range), range); // then limit the result before we do more calculations below
 
-#ifndef CONFIG_4_CH // In most "car style" transmitters, less than a half of the throttle potentiometer range is used for the reverse. So we have to enhance this range!
+#ifndef CONFIG_4_CH // In most "car style" transmitters, less than one half of the throttle potentiometer range is used for the reverse. So we have to enhance this range!
   if (reading[2] < (range / 2) ) {
-    reading[2] = constrain(reading[2], (range / 3), (range / 2)); // limit reverse range, which will be multiplied later
-    reading[2] = map(reading[2], (range / 3), (range / 2), 0, (range / 2)); // reverse range multiplied by 4
+    reading[2] = constrain(reading[2], reverseEndpoint, (range / 2)); // limit reverse range, which will be mapped later on
+    reading[2] = map(reading[2], reverseEndpoint, (range / 2), 0, (range / 2)); // reverse range mapping (adjust reverse endpoint in transmitterConfig.h)
   }
 #endif
 
@@ -558,6 +576,12 @@ void readJoysticks() {
 #ifdef CH4
   data.axis4 = mapJoystick(JOYSTICK_4, 3); // Rudder
 #endif
+
+  // in case of an overflow, set axis to zero (prevent it from overflowing < 0)
+  if (data.axis1 > 150) data.axis1 = 0;
+  if (data.axis2 > 150) data.axis2 = 0;
+  if (data.axis3 > 150) data.axis3 = 0;
+  if (data.axis4 > 150) data.axis4 = 0;
 
   // Only allow display refresh, if no value has changed!
   if (previousAxis1 != data.axis1 ||
@@ -796,7 +820,7 @@ void transmitRadio() {
 
 //
 // =======================================================================================================
-// READ RADIO DATA (for radio tester)
+// READ RADIO DATA (for radio tester mode)
 // =======================================================================================================
 //
 
