@@ -95,4 +95,6 @@ See pictures
 
 ![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/Micro_RC_Transmitter_WLtoys_2.jpg)
 
+![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/Micro_RC_Transmitter_WLtoys_3.jpg)
+
 (c) 2016-2019 TheDIYGuy999
