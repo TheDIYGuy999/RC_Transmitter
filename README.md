@@ -106,4 +106,7 @@ See pictures
 3 buttons wired to CH4
 ![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/3buttons.jpg)
 
+3 position rocker switch wired to CH2 (for 3 speed transmission)
+![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/3posSwitch.jpg)
+
 (c) 2016-2020 TheDIYGuy999
