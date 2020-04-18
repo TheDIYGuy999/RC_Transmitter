@@ -12,7 +12,7 @@
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 // ATARI PONG game :-) Press the "Back" button during power on to start it
 
-const float codeVersion = 2.2; // Software revision
+const float codeVersion = 2.3; // Software revision
 
 //
 // =======================================================================================================

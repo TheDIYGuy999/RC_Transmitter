@@ -188,7 +188,7 @@ void pong() {
     if (cpu_y + PADDLE_HEIGHT > 63) cpu_y = 63 - PADDLE_HEIGHT;
 
     // Player paddle control----
-#ifdef CH4 // If we have a channel 4 (= 4 channel joystick transmitter)
+#ifdef CONFIG_MICRO_RC // If we have a channel 4 (= 4 channel joystick transmitter)
     player_y = map(data.axis2, 100, 0, 0, (63 - PADDLE_HEIGHT));
 #else // Else (2 channel car style transmitter)
     player_y = map(data.axis1, 100, 0, 0, (63 - PADDLE_HEIGHT));

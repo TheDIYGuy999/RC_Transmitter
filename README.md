@@ -81,6 +81,12 @@ New in V 2.2:
 - New potentiometer calibration variable "reverseEndpoint" allows to adjust the throttle reverse range. Use the "Micro RC Tester" mode on a 2nd transmitter and then adjust the "range" variable as well, until the entire range of all channels is used on the graphical display.
 - New "ledInversed" variable allows to use the stock WLtoys LED, which has a red and a green LED in one housing. The common pin is connected to VCC
 
+New in V 2.3:
+- 2+2CH configurarion for WLtoys transmitter added (CONFIG_WLTOYS)
+- Allows to connect 3 buttons on CH4
+- More than 3 buttons would be possible as well, but I ran out of space for more buttons
+- Wiring see picture
+
 
 ## Usage
 
@@ -97,4 +103,7 @@ See pictures
 
 ![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/Micro_RC_Transmitter_WLtoys_3.jpg)
 
-(c) 2016-2019 TheDIYGuy999
+3 buttons wired to CH4
+![](https://github.com/TheDIYGuy999/RC_Transmitter/blob/master/3buttons.jpg)
+
+(c) 2016-2020 TheDIYGuy999
