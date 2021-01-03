@@ -5,9 +5,9 @@
 - 4 analog axes, 2 mode switches (joystick buttons)
 - 1 potentiometer for adjustments like the MRSC stability control
 - 4 push buttons for transmission mode and vehicle selection as well as menu navigation
-- 10 seletcable vehicle addresses, so you can use it for more than one vehicle
+- 20 seletcable vehicle addresses, so you can use it for more than one vehicle
 - 3.3V, 8MHz Pro Mini (a Pro Micro is not supported anymore due to additional functionality)
-- STM32 ARM version see: https://github.com/TheDIYGuy999/RC_Transmitter_STM32
+- STM32 ARM version (deprecated) see: https://github.com/TheDIYGuy999/RC_Transmitter_STM32
 - 2.4GHz NRF24L01 radio module
 - Support for 0.96" I2C OLED
 - Configuration menu for: Channel direction reversing, servo travel adjustment (independent for each vehicle)
@@ -86,6 +86,13 @@ New in V 2.3:
 - Allows to connect 3 buttons on CH4
 - More than 3 buttons would be possible as well, but I ran out of space for more buttons
 - Wiring see picture
+
+New in V 2.4:
+- Joystick ranges separatly adjustable for each channel in "transmitterConfig.h". This is required for the conversation of some car style transmitters, because they don't use the entire potentiometer range from end stop to end stop.
+
+New in V 2.5:
+- 20 vehicle addresses instead of 10
+- Less RAM usage
 
 
 ## Usage

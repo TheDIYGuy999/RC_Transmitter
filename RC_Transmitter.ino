@@ -12,7 +12,7 @@
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 // ATARI PONG game :-) Press the "Back" button during power on to start it
 
-const float codeVersion = 2.3; // Software revision
+const float codeVersion = 2.5; // Software revision
 
 //
 // =======================================================================================================
@@ -64,10 +64,12 @@ const byte NRFchannel[] {
 };
 
 // the ID number of the used "radio pipe" must match with the selected ID on the transmitter!
-// 10 ID's are available @ the moment
-const uint64_t pipeOut[] = {
+// 20 ID's are available @ the moment
+const uint64_t pipeOut[] PROGMEM = {
   0xE9E8F0F0B1LL, 0xE9E8F0F0B2LL, 0xE9E8F0F0B3LL, 0xE9E8F0F0B4LL, 0xE9E8F0F0B5LL,
-  0xE9E8F0F0B6LL, 0xE9E8F0F0B7LL, 0xE9E8F0F0B8LL, 0xE9E8F0F0B9LL, 0xE9E8F0F0B0LL
+  0xE9E8F0F0B6LL, 0xE9E8F0F0B7LL, 0xE9E8F0F0B8LL, 0xE9E8F0F0B9LL, 0xE9E8F0F0B0LL,
+  0xE9E8F0F0C1LL, 0xE9E8F0F0C2LL, 0xE9E8F0F0C3LL, 0xE9E8F0F0C4LL, 0xE9E8F0F0C5LL,
+  0xE9E8F0F0C6LL, 0xE9E8F0F0C7LL, 0xE9E8F0F0C8LL, 0xE9E8F0F0C9LL, 0xE9E8F0F0C0LL
 };
 const int maxVehicleNumber = (sizeof(pipeOut) / (sizeof(uint64_t)));
 
@@ -208,10 +210,10 @@ byte menuRow = 0; // Menu active cursor line
 
 // EEPROM (max. total size is 512 bytes)
 // Always get the adresses first and in the same order
-// Blocks of 11 x 4 bytes = 44 bytes each!
-int addressReverse = EEPROM.getAddress(sizeof(byte) * 44);
-int addressNegative = EEPROM.getAddress(sizeof(byte) * 44);
-int addressPositive = EEPROM.getAddress(sizeof(byte) * 44);
+// Blocks of 21 x 4 bytes = 84 bytes each!
+int addressReverse = EEPROM.getAddress(sizeof(byte) * 84);
+int addressNegative = EEPROM.getAddress(sizeof(byte) * 84);
+int addressPositive = EEPROM.getAddress(sizeof(byte) * 84);
 
 //
 // =======================================================================================================
@@ -224,6 +226,7 @@ int addressPositive = EEPROM.getAddress(sizeof(byte) * 44);
 //#include "transmitterConfig.h"
 #include "MeccanoIr.h" // https://github.com/TheDIYGuy999/MeccanoIr
 #include "pong.h" // A little pong game :-)
+#include "pgmRead64.h" // Read 64 bit blocks from PROGMEM
 
 //
 // =======================================================================================================
@@ -242,7 +245,8 @@ void setupRadio() {
   else radio.setPALevel(RF24_PA_MAX); // Independent NRF24L01 3.3V PSU, so "FULL" transmission level allowed
 
   radio.setDataRate(RF24_250KBPS);
-  radio.setAutoAck(pipeOut[vehicleNumber - 1], true); // Ensure autoACK is enabled
+  //radio.setAutoAck(pipeOut[vehicleNumber - 1], true); // Ensure autoACK is enabled
+  radio.setAutoAck(pgm_read_64(&pipeOut, vehicleNumber - 1), true); // Ensure autoACK is enabled
   radio.enableAckPayload();
   radio.enableDynamicPayloads();
   radio.setRetries(5, 5);                  // 5x250us delay (blocking!!), max. 5 retries
@@ -261,13 +265,15 @@ void setupRadio() {
 
   // Transmitter
   if (operationMode == 0) {
-    radio.openWritingPipe(pipeOut[vehicleNumber - 1]); // Vehicle Number 1 = Array number 0, so -1!
+    //radio.openWritingPipe(pipeOut[vehicleNumber - 1]); // Vehicle Number 1 = Array number 0, so -1!
+    radio.openWritingPipe(pgm_read_64(&pipeOut, vehicleNumber - 1)); // Vehicle Number 1 = Array number 0, so -1!
     radio.write(&data, sizeof(RcData));
   }
 
   // Receiver (radio tester mode)
   if (operationMode == 1) {
-    radio.openReadingPipe(1, pipeOut[vehicleNumber - 1]);
+    //radio.openReadingPipe(1, pipeOut[vehicleNumber - 1]);
+    radio.openReadingPipe(1, pgm_read_64(&pipeOut, vehicleNumber - 1));
     radio.startListening();
   }
 }
@@ -529,25 +535,25 @@ void JoystickOffset() {
 byte mapJoystick(byte input, byte arrayNo) {
   int reading[4];
   reading[arrayNo] = analogRead(input) + offset[arrayNo]; // read joysticks and add the offset
-  reading[arrayNo] = constrain(reading[arrayNo], (1023 - range), range); // then limit the result before we do more calculations below
+  reading[arrayNo] = constrain(reading[arrayNo], (1023 - range[arrayNo]), range[arrayNo]); // then limit the result before we do more calculations below
 
 #ifndef CONFIG_4_CH // In most "car style" transmitters, less than one half of the throttle potentiometer range is used for the reverse. So we have to enhance this range!
-  if (reading[2] < (range / 2) ) {
-    reading[2] = constrain(reading[2], reverseEndpoint, (range / 2)); // limit reverse range, which will be mapped later on
-    reading[2] = map(reading[2], reverseEndpoint, (range / 2), 0, (range / 2)); // reverse range mapping (adjust reverse endpoint in transmitterConfig.h)
+  if (reading[2] < (range[2] / 2) ) {
+    reading[2] = constrain(reading[2], reverseEndpoint, (range[2] / 2)); // limit reverse range, which will be mapped later on
+    reading[2] = map(reading[2], reverseEndpoint, (range[2] / 2), 0, (range[2] / 2)); // reverse range mapping (adjust reverse endpoint in transmitterConfig.h)
   }
 #endif
 
   if (transmissionMode == 1 && operationMode != 2 ) { // Radio mode and not game mode
     if (joystickReversed[vehicleNumber][arrayNo]) { // reversed
-      return map(reading[arrayNo], (1023 - range), range, (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50), (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2));
+      return map(reading[arrayNo], (1023 - range[arrayNo]), range[arrayNo], (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50), (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2));
     }
     else { // not reversed
-      return map(reading[arrayNo], (1023 - range), range, (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2), (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50));
+      return map(reading[arrayNo], (1023 - range[arrayNo]), range[arrayNo], (50 - joystickPercentNegative[vehicleNumber][arrayNo] / 2), (joystickPercentPositive[vehicleNumber][arrayNo] / 2 + 50));
     }
   }
   else { // IR mode
-    return map(reading[arrayNo], (1023 - range), range, 0, 100);
+    return map(reading[arrayNo], (1023 - range[arrayNo]), range[arrayNo], 0, 100);
   }
 }
 
