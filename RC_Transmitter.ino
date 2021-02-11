@@ -12,7 +12,7 @@
 // NRF24L01+PA+LNA SMA radio modules with power amplifier are supported from board version 1.1
 // ATARI PONG game :-) Press the "Back" button during power on to start it
 
-const float codeVersion = 2.5; // Software revision
+const float codeVersion = 2.51; // Software revision
 
 //
 // =======================================================================================================
@@ -31,12 +31,12 @@ const float codeVersion = 2.5; // Software revision
 
 // Libraries
 #include <SPI.h>
-#include <RF24.h> // Installed via Tools > Board > Boards Manager > Type RF24
+#include <RF24.h> // Installed via Sketch > Include Library > Manage Libraries > Type "RF24" (use V1.3.3!)
 #include <printf.h>
 #include <EEPROMex.h> // https://github.com/thijse/Arduino-EEPROMEx
 #include <LegoIr.h> // https://github.com/TheDIYGuy999/LegoIr
 #include <statusLED.h> // https://github.com/TheDIYGuy999/statusLED
-#include <U8glib.h> // https://github.com/olikraus/u8glib or https://bintray.com/olikraus/u8glib/Arduino
+#include <U8glib.h> // Installed via Sketch > Include Library > Manage Libraries > Type "U8glib"
 
 // Tabs
 #include "transmitterConfig.h"

@@ -94,6 +94,9 @@ New in V 2.5:
 - 20 vehicle addresses instead of 10
 - Less RAM usage
 
+New in V 2.51:
+- Libraries comments added
+
 
 ## Usage
 
